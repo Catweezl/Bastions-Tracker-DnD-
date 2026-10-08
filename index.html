@@ -30,6 +30,9 @@
   .daybox .big{font-size:22px;color:var(--accent2);line-height:1.1;}
   .daybox .small{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;}
   .tools{display:flex;gap:6px;flex-wrap:wrap;}
+  .dayset{display:inline-flex;gap:4px;align-items:center;}
+  .dayset input{width:64px;}
+  .btn.armed{background:var(--bad);border-color:var(--bad);color:#fff;}
 
   .btn{background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:5px;padding:6px 11px;cursor:pointer;white-space:nowrap;}
   .btn:hover{border-color:var(--accent2);}
@@ -139,7 +142,7 @@
       <div class="tools">
         <button class="btn" data-a="day" data-n="1">+1 Tag</button>
         <button class="btn primary" data-a="turn">Nächster Bastion Turn ▸</button>
-        <button class="btn ghost" data-a="setday">Tag setzen</button>
+        <span class="dayset"><input type="number" id="dayIn" min="0" placeholder="Tag" title="Tag direkt setzen"><button class="btn ghost" data-a="setday">Setzen</button><button class="btn ghost" data-a="resetday" title="Zähler auf Tag 0 setzen – laufende Orders behalten ihre Restdauer">↺ 0</button></span>
       </div>
     </div>
     <div class="tools">
@@ -197,8 +200,8 @@ function roll(expr){ // "1W4", "2W6"
 }
 function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 2600); }
 const slotsFor = lvl => lvl >= 17 ? 6 : lvl >= 13 ? 5 : lvl >= 9 ? 4 : lvl >= 5 ? 2 : 0;
-const tendayOf = d => Math.floor((d - 1) / 10) + 1;
-const dayInTenday = d => ((d - 1) % 10) + 1;
+const tendayOf = d => Math.floor(d / 10) + 1;
+const dayInTenday = d => (d % 10) + 1;
 
 /* ===================== Regeldaten ===================== */
 // Offizielle Special Facilities (DMG 2024) – Mindeststufe & Order
@@ -306,7 +309,7 @@ function fac(id, type, name, label, owner, hirelings, location, extra = {}){
 }
 function defaultState(){
   return {
-    version:1, day:1, kasseCP:0, theme:'dark',
+    version:1, day:0, kasseCP:0, theme:'dark',
     chars:[
       {id:'kaelan', name:'Kaelan Nachtfluch', level:5},
       {id:'aelar', name:'Aelar Frostschatten', level:5},
@@ -324,7 +327,7 @@ function defaultState(){
     siegel:{lastUsed:null},
     lager:[],
     lastEvent:null,
-    log:[{day:1, text:'Tracker angelegt – Dessarin-Anwesen bei Stufe 5.'}]
+    log:[{day:0, text:'Tracker angelegt – Dessarin-Anwesen bei Stufe 5.'}]
   };
 }
 let S;
@@ -345,6 +348,36 @@ function advance(n){
   S.facilities.forEach(f => { if (f.cooldownUntil && from < f.cooldownUntil && S.day >= f.cooldownUntil) log(`${f.name}: Abklingzeit vorbei.`); });
   for (const k in S.charms){ if (S.charms[k] && S.day >= S.charms[k]){ S.charms[k] = 0; log(`${k === 'sanctuary' ? 'Sanctuary' : 'Arcane Study'} Charm abgelaufen.`); } }
   if (S.siegel.lastUsed != null && from < S.siegel.lastUsed + 20 && S.day >= S.siegel.lastUsed + 20) log('Siegelring wieder bereit (Hinreise).');
+}
+
+// Zweistufige Bestätigung ohne Browser-Dialoge (confirm/prompt sind in manchen Ansichten gesperrt)
+const keyOf = el => [el.dataset.a, el.dataset.f || '', el.dataset.j || '', el.dataset.k || ''].join('|');
+function armed(el){
+  const k = keyOf(el);
+  if (UI.armed === k){ UI.armed = null; clearTimeout(UI.armTimer); return true; }
+  UI.armed = k; clearTimeout(UI.armTimer);
+  UI.armTimer = setTimeout(() => { UI.armed = null; render(); }, 3500);
+  render(); return false;
+}
+function markArmed(){
+  document.querySelectorAll('button.armed').forEach(el => { el.classList.remove('armed'); if (el.dataset.orig != null) el.textContent = el.dataset.orig; });
+  if (!UI.armed) return;
+  document.querySelectorAll('button[data-a]').forEach(el => {
+    if (keyOf(el) === UI.armed){ el.dataset.orig = el.textContent; el.classList.add('armed'); el.textContent = 'Sicher? Nochmal klicken'; }
+  });
+}
+// Tag setzen: vorwärts = Zeit läuft ab; rückwärts = Zähler verschieben, laufende Timer behalten ihre Restdauer
+function setDay(n){
+  if (n > S.day){ advance(n - S.day); log(`Tag auf ${S.day} gesetzt.`); return; }
+  const d = S.day - n; if (!d) return;
+  S.facilities.forEach(f => {
+    f.jobs.forEach(j => { j.start = Math.max(0, j.start - d); j.end = Math.max(0, j.end - d); });
+    if (f.cooldownUntil) f.cooldownUntil = f.cooldownUntil - d > n ? f.cooldownUntil - d : 0;
+  });
+  for (const k in S.charms) if (S.charms[k]) S.charms[k] = S.charms[k] - d > n ? S.charms[k] - d : 0;
+  if (S.siegel.lastUsed != null) S.siegel.lastUsed -= d;
+  S.day = n;
+  log(`Tageszähler auf ${n} gesetzt – laufende Orders und Abklingzeiten behalten ihre Restdauer.`);
 }
 
 /* ===================== Aufträge ===================== */
@@ -378,7 +411,6 @@ function completeJob(f, j){
   log(`${f.name}: ${msg}`); toast(msg);
 }
 function cancelJob(f, j){
-  if (!confirm(`Auftrag „${j.title}“ abbrechen?`)) return;
   if (j.paid && j.matCP) S.kasseCP += j.matCP;
   if (j.kind === 'sell' && j.items) j.items.forEach(it => addLager(it.name, it.qty, it.unitCP));
   f.jobs = f.jobs.filter(x => x !== j);
@@ -389,10 +421,10 @@ function cancelJob(f, j){
 function render(){
   document.documentElement.setAttribute('data-theme', S.theme);
   $('#themeBtn').textContent = S.theme === 'dark' ? '☀' : '☾';
-  const toTurn = 10 - dayInTenday(S.day) + 1;
   $('#dayBig').textContent = 'Tag ' + S.day;
   $('#daySmall').textContent = `Tenday ${tendayOf(S.day)} · Tag ${dayInTenday(S.day)}/10`;
   renderChars(); renderFacilities(); renderSiegel(); renderCharms(); renderKasse(); renderEvents(); renderLog();
+  markArmed();
   save();
 }
 function renderChars(){
@@ -487,14 +519,14 @@ function facHTML(f, overLimit){
     ${cd ? `<div class="notice">Abklingzeit bis Tag ${f.cooldownUntil} (noch ${f.cooldownUntil - S.day} T)</div>` : ''}
     ${overLimit ? `<div class="notice" style="color:var(--bad)">Über dem Slot-Limit der aktuellen Stufe.</div>` : ''}
     ${f.jobs.map(j => jobHTML(f, j)).join('')}
-    ${UI.openForm === f.id ? formHTML(f) : ''}
+    ${UI.openForm === f.id && !f.jobs.length ? formHTML(f) : ''}
     <textarea class="notes" placeholder="Notizen…" data-a="notes" data-f="${f.id}">${esc(f.notes)}</textarea>
     <div class="fac-foot">
       <span class="tiny muted">Besitzer <select data-a="owner" data-f="${f.id}" style="font-size:12px;padding:2px 4px">${owners}</select></span>
       <span style="display:flex;gap:6px">
         ${canUpgrade ? `<button class="btn small" data-a="upgrade" data-f="${f.id}">→ ${esc(CATALOG[f.upgradeTo].name)}</button>` : ''}
         <button class="btn small ghost danger" data-a="remove" data-f="${f.id}" title="Facility entfernen">✕</button>
-        ${UI.openForm === f.id ? '' : `<button class="btn small primary" data-a="openform" data-f="${f.id}">+ Order</button>`}
+        ${UI.openForm === f.id ? '' : f.jobs.length ? `<span class="tiny muted" title="Pro Facility nur eine Order gleichzeitig">Order läuft</span>` : `<button class="btn small primary" data-a="openform" data-f="${f.id}">+ Order</button>`}
       </span>
     </div></div>`;
 }
@@ -525,7 +557,7 @@ function renderSiegel(){
   $('#siegelPanel').innerHTML = `<h2>Siegel des Dessarin-Anwesens <span class="hint">Kaelan</span></h2>
     <div class="kv"><span><span class="status-dot ${ready ? 'ok' : 'warn'}"></span>Hinreise (Portal)</span><span>${ready ? 'bereit' : `ab Tag ${next} (noch ${next - S.day} T)`}</span></div>
     <div class="kv"><span><span class="status-dot ok"></span>Rückreise</span><span class="muted">jederzeit (Rückkehrkreis)</span></div>
-    <div class="kv tiny muted"><span>Zuletzt benutzt</span><span>${s.lastUsed == null ? '–' : 'Tag ' + s.lastUsed}</span></div>
+    <div class="kv tiny muted"><span>Zuletzt benutzt</span><span>${s.lastUsed == null ? '–' : 'Tag ' + s.lastUsed + (s.lastUsed < 0 ? ' (vor Reset)' : '')}</span></div>
     <div class="tiny muted" style="margin:6px 0">1× alle 2 Tendays · Action · goldenes Torm-Portal für 1 Minute · bis zu 6 Kreaturen → Portalraum im Keller.</div>
     <div class="tools"><button class="btn small primary" data-a="siegel" ${ready ? '' : 'disabled'}>Portal geöffnet (heute)</button>
     <button class="btn small ghost" data-a="siegelreset">Zurücksetzen</button></div>`;
@@ -615,7 +647,7 @@ function submitForm(f){
     const mode = UI.formType[f.id] || 'buy', lvl = ownerLevel(f);
     if (mode === 'buy'){
       const gp = Math.max(0, +val('gp').value || 0), limit = STORE_LIMIT(lvl);
-      if (gp * GP > limit && !confirm(`Über dem Einkaufslimit von ${fmt(limit)} – trotzdem?`)) return;
+      if (gp * GP > limit && !armed(document.querySelector(`[data-a=submit][data-f="${f.id}"]`))){ toast(`Über dem Einkaufslimit von ${fmt(limit)} – zum Bestätigen erneut klicken.`); return; }
       createJob(f, {kind:'buy', order:'Trade', title:label || 'Trade Goods', qty:1, matCP:gp * GP, paid, end:S.day + 10, hireling:'Meister Orlin'});
     } else {
       const items = selectedSell(form), extra = (+val('extra')?.value || 0) * GP;
@@ -639,8 +671,9 @@ document.addEventListener('click', e => {
   const a = b.dataset.a, f = b.dataset.f ? facById(b.dataset.f) : null;
   switch (a){
     case 'day': advance(+b.dataset.n); break;
-    case 'turn': { const n = 10 - dayInTenday(S.day) + 1; advance(n); log(`— Bastion Turn ${tendayOf(S.day)} beginnt (Tag ${S.day}). Neue Orders erteilen. —`); toast(`Bastion Turn ${tendayOf(S.day)} · Tag ${S.day}`); break; }
-    case 'setday': { const v = prompt('Aktueller Tag (seit Ankunft im Anwesen):', S.day); if (v && +v >= 1){ const n = Math.floor(+v); if (n > S.day) advance(n - S.day); else S.day = n; log(`Tag auf ${S.day} gesetzt.`); } else return; break; }
+    case 'turn': { const n = 10 - (S.day % 10); advance(n); log(`— Bastion Turn ${tendayOf(S.day)} beginnt (Tag ${S.day}). Neue Orders erteilen. —`); toast(`Bastion Turn ${tendayOf(S.day)} · Tag ${S.day}`); break; }
+    case 'setday': { const v = $('#dayIn').value; if (v === '' || +v < 0){ toast('Bitte einen Tag ≥ 0 eingeben.'); return; } setDay(Math.floor(+v)); break; }
+    case 'resetday': if (S.day === 0) { toast('Zähler steht bereits auf 0.'); return; } if (!armed(b)) return; setDay(0); break;
     case 'theme': S.theme = S.theme === 'dark' ? 'light' : 'dark'; break;
     case 'export': {
       const blob = new Blob([JSON.stringify(S, null, 2)], {type:'application/json'});
@@ -649,14 +682,14 @@ document.addEventListener('click', e => {
       return;
     }
     case 'import': $('#importFile').click(); return;
-    case 'openform': UI.openForm = f.id; break;
+    case 'openform': if (f.jobs.length){ toast('Pro Facility nur eine Order gleichzeitig.'); return; } UI.openForm = f.id; break;
     case 'closeform': UI.openForm = null; break;
-    case 'submit': submitForm(f); return;
+    case 'submit': if (f.jobs.length){ toast('Diese Facility hat bereits eine laufende Order.'); return; } submitForm(f); return;
     case 'storemode': UI.formType[f.id] = b.dataset.m; break;
     case 'complete': { const j = f.jobs.find(x => x.id === b.dataset.j); if (j) completeJob(f, j); break; }
-    case 'cancel': { const j = f.jobs.find(x => x.id === b.dataset.j); if (j) cancelJob(f, j); break; }
-    case 'remove': if (!confirm(`${f.name} entfernen? Laufende Orders gehen verloren.`)) return; S.facilities = S.facilities.filter(x => x !== f); log(`Facility entfernt: ${f.name}.`); break;
-    case 'upgrade': { const to = CATALOG[f.upgradeTo]; if (!confirm(`${f.name} zu ${to.name} aufwerten?`)) return; f.type = f.upgradeTo; f.name = to.name; f.label = 'Restauriertes Gewächshaus'; f.notes = ''; delete f.upgradeTo; log(`${to.name} freigeschaltet (Upgrade von Garden 2).`); break; }
+    case 'cancel': { if (!armed(b)) return; const j = f.jobs.find(x => x.id === b.dataset.j); if (j) cancelJob(f, j); break; }
+    case 'remove': if (!armed(b)) return; S.facilities = S.facilities.filter(x => x !== f); log(`Facility entfernt: ${f.name}.`); break;
+    case 'upgrade': { if (!armed(b)) return; const to = CATALOG[f.upgradeTo]; f.type = f.upgradeTo; f.name = to.name; f.label = 'Restauriertes Gewächshaus'; f.notes = ''; delete f.upgradeTo; log(`${to.name} freigeschaltet (Upgrade von Garden 2).`); break; }
     case 'siegel': S.siegel.lastUsed = S.day; log('Siegelring benutzt – Portal zum Anwesen geöffnet.'); break;
     case 'siegelreset': S.siegel.lastUsed = null; log('Siegelring-Cooldown zurückgesetzt.'); break;
     case 'charm': S.charms[b.dataset.k] = S.day + 10; log(`${b.dataset.k === 'sanctuary' ? 'Sanctuary' : 'Arcane Study'} Charm erhalten (bis Tag ${S.day + 10}).`); break;
@@ -676,7 +709,7 @@ document.addEventListener('click', e => {
       log(`Maintain-Event: W100 = ${r} → ${ev[2]}${extra ? ' (' + extra + ')' : ''}.`);
       break;
     }
-    case 'clearlog': if (!confirm('Logbuch leeren?')) return; S.log = []; break;
+    case 'clearlog': if (!S.log.length) return; if (!armed(b)) return; S.log = []; toast('Logbuch geleert.'); break;
     case 'addlog': { const v = $('#logIn').value.trim(); if (!v) return; log(v); break; }
     default: return;
   }
