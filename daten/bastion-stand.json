@@ -154,8 +154,12 @@
     }
   ],
   "charms": {
-    "sanctuary": 12,
-    "arcane_study": 12
+    "sanctuary": {
+      "kaelan": 12
+    },
+    "arcane_study": {
+      "kaelan": 12
+    }
   },
   "siegel": {
     "lastUsed": null
@@ -170,6 +174,18 @@
   ],
   "lastEvent": null,
   "log": [
+    {
+      "day": 2,
+      "text": "Heroic Inspiration für Vyrraks (Short Rest im Workshop)."
+    },
+    {
+      "day": 2,
+      "text": "Sanctuary Charm für Kaelan (bis Tag 12)."
+    },
+    {
+      "day": 2,
+      "text": "Sanctuary Charm von Kaelan eingesetzt."
+    },
     {
       "day": 2,
       "text": "Arcane Study Charm erhalten (bis Tag 12)."
@@ -202,5 +218,9 @@
       "day": 0,
       "text": "Order (Harvest) · Garden 1: Potion of Healing – fertig an Tag 10."
     }
-  ]
+  ],
+  "insp": {
+    "vyrraks": "has"
+  },
+  "charmsAll": false
 }
