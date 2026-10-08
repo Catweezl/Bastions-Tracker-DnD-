@@ -253,6 +253,16 @@ const WORKSHOP = [
     ['Whip',2*GP,1*GP,1],['Backpack',2*GP,1*GP,1],['Crossbow Bolt Case',1*GP,5*SP,1],['Map/Scroll Case',1*GP,5*SP,1],
     ['Pouch',5*SP,2*SP,1],['Quiver',1*GP,5*SP,1],['Waterskin',2*SP,1*SP,1]]}
 ];
+const WS_CATS = ['Waffen','Munition','Rüstung','Kleidung & Lager','Foki','Behälter & Glas','Werkzeug & Ausrüstung'];
+function wsCat(name){
+  if (/pfeil|Arrows|Bolts \(|Hammerköpfe|Breitköpfe/i.test(name)) return 'Munition';
+  if (/Sack|Basket|Backpack|Case|Pouch|Quiver|Waterskin|Vial|Bottle|Flask/.test(name)) return 'Behälter & Glas';
+  if (/bow$|Crossbow$|Quarterstaff|^Club|Greatclub|Sling|Whip|^Net$|Pistol|Musket/.test(name)) return 'Waffen';
+  if (/Armor/.test(name)) return 'Rüstung';
+  if (/Robe|Clothes|Blanket|Bedroll|Tent/.test(name)) return 'Kleidung & Lager';
+  if (/Focus|Holy Symbol/.test(name)) return 'Foki';
+  return 'Werkzeug & Ausrüstung';
+}
 const MAGIC_CRAFT = [ // ab Level 9 (Workshop / Arcane Study)
   ['Common Magic Item',0,50*GP,5],['Uncommon Magic Item',0,200*GP,10]
 ];
@@ -263,25 +273,25 @@ const SANCTUARY = [
 ];
 const ARCANE = [['Arcane Focus',20*GP,0,10],['Leeres Buch',25*GP,10*GP,10]];
 
-// Homebrew Garden / Greenhouse: [Produkt, Würfel, Abklingzeit in Tagen, Wert pro Stück in CP (0 = unbekannt), Info]
+// Homebrew Garden / Greenhouse: [Produkt, Würfel, Abklingzeit in Tagen, Wert pro Stück in CP (0 = unbekannt), Info, Kategorie A/B]
 const HARVEST = {
   garden:[
-    ['Potion of Healing','1W4',0,50*GP,'Heilkräuter (einfach) · 2W4+2 HP'],
-    ['Basic Poison','1W4',0,100*GP,'Injury · CON 10 · +1W4 Gift, 1 Min.'],
-    ["Assassin's Blood",'1W4',0,0,'Ingested · CON 10 · 1W12 + Poisoned 24h']
+    ['Potion of Healing','1W4',0,50*GP,'Heilkräuter (einfach) · 2W4+2 HP','A'],
+    ['Basic Poison','1W4',0,100*GP,'Injury · CON 10 · +1W4 Gift, 1 Min.','B'],
+    ["Assassin's Blood",'1W4',0,0,'Ingested · CON 10 · 1W12 + Poisoned 24h','B']
   ],
   greenhouse:[
-    ['Potion of Healing','1W6',0,50*GP,'Einfach · 2W4+2 HP'],
-    ['Potion of Greater Healing','1W4',10,0,'Mittel · 4W4+4 HP'],
-    ['Potion of Superior Healing','1W2',20,0,'Schwer · 8W4+8 HP'],
-    ['Fruit of Restoration (3 Früchte)','1W1',0,0,'Lesser Restoration · 24h haltbar'],
-    ['Basic Poison','1W6',0,100*GP,'Einfach · Injury · CON 10'],
-    ["Assassin's Blood",'1W6',0,0,'Einfach · Ingested · CON 10'],
-    ['Malice','1W4',10,0,'Mittel · Inhaled · CON 15'],
-    ['Oil of Taggit','1W4',10,0,'Mittel · Contact · CON 13'],
-    ['Truth Serum','1W4',10,0,'Mittel · Ingested · CON 11'],
-    ['Pale Tincture','1W2',20,0,'Schwer · Ingested · CON 16'],
-    ['Torpor','1W2',20,0,'Schwer · Ingested · CON 15']
+    ['Potion of Healing','1W6',0,50*GP,'Einfach · 2W4+2 HP','A'],
+    ['Potion of Greater Healing','1W4',10,0,'Mittel · 4W4+4 HP','A'],
+    ['Potion of Superior Healing','1W2',20,0,'Schwer · 8W4+8 HP','A'],
+    ['Fruit of Restoration (3 Früchte)','1W1',0,0,'Lesser Restoration · 24h haltbar','A'],
+    ['Basic Poison','1W6',0,100*GP,'Einfach · Injury · CON 10','B'],
+    ["Assassin's Blood",'1W6',0,0,'Einfach · Ingested · CON 10','B'],
+    ['Malice','1W4',10,0,'Mittel · Inhaled · CON 15','B'],
+    ['Oil of Taggit','1W4',10,0,'Mittel · Contact · CON 13','B'],
+    ['Truth Serum','1W4',10,0,'Mittel · Ingested · CON 11','B'],
+    ['Pale Tincture','1W2',20,0,'Schwer · Ingested · CON 16','B'],
+    ['Torpor','1W2',20,0,'Schwer · Ingested · CON 15','B']
   ]
 };
 const STORE_LIMIT = lvl => lvl >= 13 ? 5000*GP : lvl >= 9 ? 2000*GP : 500*GP;
@@ -396,10 +406,14 @@ function completeJob(f, j){
   if (j.kind === 'craft'){
     addLager(j.title, j.qty, j.unitCP); msg = `${j.title} ×${j.qty} ins Lager.`;
   } else if (j.kind === 'harvest'){
-    const r = roll(j.dice); const n = j.multiplier ? r.total * j.multiplier : r.total;
-    addLager(j.title, n, j.unitCP);
-    if (j.cooldown) f.cooldownUntil = S.day + j.cooldown;
-    msg = `Ernte ${j.dice} = ${r.total}${j.multiplier ? ' ×' + j.multiplier : ''} → ${n}× ${j.title}${j.cooldown ? ` · Abklingzeit bis Tag ${f.cooldownUntil}` : ''}.`;
+    const parts = j.parts || [{title:j.title, dice:j.dice, unitCP:j.unitCP}];
+    msg = 'Ernte: ' + parts.map(pt => {
+      const r = roll(pt.dice).total, n = j.mix ? Math.max(1, Math.ceil(r / 2)) : r;
+      addLager(pt.title, n, pt.unitCP);
+      return `${pt.dice} = ${r}${j.mix ? ' ÷2 → ' + n : ''} → ${n}× ${pt.title}`;
+    }).join(' · ');
+    if (j.cooldown){ f.cooldownUntil = S.day + j.cooldown; msg += ` · Abklingzeit bis Tag ${f.cooldownUntil}`; }
+    msg += '.';
   } else if (j.kind === 'buy'){
     addLager(j.title, 1, j.matCP); msg = `Trade Goods eingetroffen: ${j.title} (${fmt(j.matCP)}).`;
   } else if (j.kind === 'sell'){
@@ -469,19 +483,35 @@ function formHTML(f){
   let body = '';
   if (t === 'workshop' || t === 'sanctuary' || t === 'arcane_study'){
     let opts = '';
-    if (t === 'workshop') opts = WORKSHOP.map((g, gi) => `<optgroup label="${esc(g.tool)} – ${esc(g.hireling)}">${optsItems(g.items, 'w' + gi)}</optgroup>`).join('');
+    let catSel = '';
+    if (t === 'workshop'){
+      const cats = WS_CATS.concat(lvl >= 9 ? ['Magic Items'] : []);
+      let cat = UI.formType[f.id + ':cat']; if (!cats.includes(cat)) cat = cats[0];
+      catSel = `<label class="f">Kategorie<select data-a="wcat" data-f="${f.id}">${cats.map(c => `<option ${c === cat ? 'selected' : ''}>${c}</option>`).join('')}</select></label>`;
+      if (cat === 'Magic Items') opts = optsItems(MAGIC_CRAFT, 'm');
+      else opts = WORKSHOP.map((g, gi) => g.items.map((it, i) => [it, i]).filter(([it]) => wsCat(it[0]) === cat)
+        .map(([it, i]) => `<option value="w${gi}|${i}">${esc(it[0])} — VK ${fmt(it[1])} · Mat. ${fmt(it[2])} · ${it[3]} T · ${esc(g.hireling)}</option>`).join('')).join('');
+    }
     if (t === 'sanctuary') opts = `<optgroup label="Sanctuary – Flynt Lagan">${optsItems(SANCTUARY, 's')}</optgroup>`;
     if (t === 'arcane_study') opts = `<optgroup label="Arcane Study – Peren">${optsItems(ARCANE, 'a')}</optgroup>`;
-    if ((t === 'workshop' || t === 'arcane_study') && lvl >= 9) opts += `<optgroup label="Magic Items (ab Stufe 9)">${optsItems(MAGIC_CRAFT, 'm')}</optgroup>`;
-    body = `<label class="f">Gegenstand<select name="item" data-a="preview">${opts}</select></label>
+    if (t === 'arcane_study' && lvl >= 9) opts += `<optgroup label="Magic Items (ab Stufe 9)">${optsItems(MAGIC_CRAFT, 'm')}</optgroup>`;
+    body = `${catSel}<label class="f">Gegenstand<select name="item" data-a="preview">${opts}</select></label>
       <div class="row">${qty}${nameOv}</div>${paid}<div class="preview" data-preview></div>`;
     if ((t === 'workshop' || t === 'arcane_study') && lvl < 9) body += `<div class="tiny muted">Magic Items ab Stufe 9 (Besitzer aktuell Stufe ${lvl}).</div>`;
   } else if (t === 'garden' || t === 'greenhouse'){
-    const list = HARVEST[t];
+    const list = HARVEST[t], mixOk = t === 'greenhouse';
+    let mode = UI.formType[f.id] || 'A'; if (mode === 'mix' && !mixOk) mode = 'A';
     const blocked = f.cooldownUntil && S.day < f.cooldownUntil;
+    const sel = (cat, name, lbl) => `<label class="f">${lbl}<select name="${name}" data-a="preview">${list.map((h, i) => [h, i]).filter(([h]) => h[5] === cat)
+      .map(([h, i]) => `<option value="h|${i}">${esc(h[0])} — ${h[1]}${mode === 'mix' ? ' ÷2' : ''}${h[2] ? ' · Abklingzeit ' + h[2] / 10 + ' Tenday' : ''}</option>`).join('')}</select></label>`;
     body = `${blocked ? `<div class="notice">Abklingzeit aktiv bis Tag ${f.cooldownUntil} – Ernte nur nach DM-Entscheid.</div>` : ''}
-      <label class="f">Ernte<select name="item" data-a="preview">${list.map((h, i) => `<option value="h|${i}">${esc(h[0])} — ${h[1]}${h[2] ? ' · Abklingzeit ' + h[2] / 10 + ' Tenday' : ''}</option>`).join('')}</select></label>
-      <div class="preview" data-preview></div><div class="tiny muted">Harvest dauert 1 Tenday. Ertrag wird beim Abschließen gewürfelt.${t === 'greenhouse' ? ' Mischbetrieb: Würfel halbieren (DM).' : ''}</div>`;
+      <div class="row"><button class="btn small ${mode === 'A' ? 'primary' : ''}" data-a="storemode" data-f="${f.id}" data-m="A">Heilkräuter</button>
+      <button class="btn small ${mode === 'B' ? 'primary' : ''}" data-a="storemode" data-f="${f.id}" data-m="B">Gifte</button>
+      <button class="btn small ${mode === 'mix' ? 'primary' : ''}" data-a="storemode" data-f="${f.id}" data-m="mix" ${mixOk ? '' : 'disabled title="Mischbetrieb erst ab Greenhouse (Stufe 9)"'}>Mischbetrieb</button></div>
+      ${mode === 'mix' ? sel('A', 'item', 'Kategorie A – Heilkräuter') + sel('B', 'item2', 'Kategorie B – Gifte') : sel(mode, 'item', mode === 'A' ? 'Kategorie A – Heilkräuter' : 'Kategorie B – Gifte')}
+      <div class="preview" data-preview></div><div class="tiny muted">Harvest dauert 1 Tenday, Ertrag wird beim Abschließen gewürfelt. ${mixOk
+        ? 'Mischbetrieb: Ertrag beider Kategorien halbiert (aufgerundet, min. 1); die längere Abklingzeit blockiert die Anlage.'
+        : 'Garden: Heilkräuter ODER Gifte – kein Mischbetrieb (erst ab Greenhouse, Stufe 9).'}</div>`;
   } else if (t === 'storehouse'){
     const mode = UI.formType[f.id] || 'buy';
     const limit = STORE_LIMIT(lvl), mk = STORE_MARKUP(lvl);
@@ -622,7 +652,11 @@ function updatePreview(form){
   if (!sel) return;
   const {it} = pickItem(f, sel.value);
   if (f.type === 'garden' || f.type === 'greenhouse'){
-    pv.textContent = `${it[4]} · Ertrag ${it[1]}${it[3] ? ' · Wert ' + fmt(it[3]) + '/Stk' : ''} · fertig an Tag ${S.day + 10}`;
+    const sel2 = form.querySelector('select[name=item2]');
+    if (sel2){
+      const it2 = pickItem(f, sel2.value).it, cd = Math.max(it[2], it2[2]);
+      pv.textContent = `${it[0]} ${it[1]}÷2 + ${it2[0]} ${it2[1]}÷2 · fertig an Tag ${S.day + 10}${cd ? ' · danach Abklingzeit ' + cd + ' Tage' : ''}`;
+    } else pv.textContent = `${it[4]} · Ertrag ${it[1]}${it[3] ? ' · Wert ' + fmt(it[3]) + '/Stk' : ''} · fertig an Tag ${S.day + 10}${it[2] ? ' · danach Abklingzeit ' + it[2] + ' Tage' : ''}`;
     return;
   }
   const q = Math.max(1, +form.querySelector('[name=qty]').value || 1);
@@ -640,9 +674,14 @@ function submitForm(f){
     const q = Math.max(1, +val('qty').value || 1);
     createJob(f, {kind:'craft', order:'Craft', title:label || it[0], qty:q, unitCP:it[1], matCP:it[2] * q, paid, end:S.day + it[3] * q, hireling});
   } else if (t === 'garden' || t === 'greenhouse'){
-    const {it} = pickItem(f, val('item').value);
-    const fruit = it[1] === '1W1';
-    createJob(f, {kind:'harvest', order:'Harvest', title:it[0], qty:1, dice:fruit ? '1W1' : it[1], multiplier:0, cooldown:it[2], unitCP:it[3], end:S.day + 10, info:it[4]});
+    const its = [pickItem(f, val('item').value).it]; if (val('item2')) its.push(pickItem(f, val('item2').value).it);
+    const mix = its.length > 1;
+    createJob(f, {kind:'harvest', order:'Harvest', qty:1, end:S.day + 10, mix,
+      title: mix ? `Mischernte: ${its[0][0]} + ${its[1][0]}` : its[0][0],
+      dice: its.map(it => it[1] + (mix ? '÷2' : '')).join(' + '),
+      cooldown: Math.max(...its.map(it => it[2])),
+      parts: its.map(it => ({title:it[0], dice:it[1], unitCP:it[3]})),
+      info: mix ? 'Mischbetrieb' : its[0][4]});
   } else if (t === 'storehouse'){
     const mode = UI.formType[f.id] || 'buy', lvl = ownerLevel(f);
     if (mode === 'buy'){
@@ -726,6 +765,7 @@ document.addEventListener('change', e => {
   }
   else if (a === 'notes'){ facById(el.dataset.f).notes = el.value; save(); }
   else if (a === 'preview'){ updatePreview(el.closest('[data-form]')); }
+  else if (a === 'wcat'){ UI.formType[el.dataset.f + ':cat'] = el.value; render(); }
 });
 document.addEventListener('input', e => { const form = e.target.closest('[data-form]'); if (form) updatePreview(form); });
 $('#importFile').addEventListener('change', e => {
