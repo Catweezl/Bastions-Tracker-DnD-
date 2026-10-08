@@ -340,7 +340,7 @@ function defaultState(){
       fac('f_workshop','workshop','Workshop','','vyrraks','Am & Boss Eisenschlag · Elaynie Fadenglanz','Nebengebäude EG'),
       fac('f_store','storehouse','Storehouse','','vyrraks','Meister Orlin (Verwalter)','Nebengebäude EG')
     ],
-    charms:{sanctuary:{}, arcane_study:{}}, insp:{}, charmsAll:false,
+    charms:{sanctuary:{}, arcane_study:{}}, insp:{},
     siegel:{lastUsed:null},
     lager:[],
     lastEvent:null,
@@ -359,7 +359,7 @@ function migrate(st){ // ältere Spielstände: Charm als Zahl → pro Charakter
       st.charms[k] = v > 0 && f ? {[f.owner]: v} : {};
     }
   }
-  st.insp = st.insp || {}; if (st.charmsAll == null) st.charmsAll = false;
+  st.insp = st.insp || {};
   return st;
 }
 try { S = JSON.parse(localStorage.getItem(LS_KEY)) || defaultState(); } catch(e){ S = defaultState(); }
@@ -697,33 +697,27 @@ function renderSiegel(){
     <div class="tools"><button class="btn small primary" data-a="siegel" ${ready ? '' : 'disabled'}>Portal geöffnet (heute)</button>
     <button class="btn small ghost" data-a="siegelreset">Zurücksetzen</button></div>`;
 }
+const facOwner = type => (S.facilities.find(f => f.type === type) || {}).owner;
 function renderCharms(){
-  const owners = type => [...new Set(S.facilities.filter(f => f.type === type).map(f => f.owner))];
-  const eligible = type => S.charmsAll ? S.chars.map(c => c.id) : owners(type);
-  const sel = (key, type) => { const ids = eligible(type); return `<select id="cs_${key}" style="font-size:12px;padding:2px 4px">${ids.map(id => `<option value="${id}">${esc(charName(id))}</option>`).join('')}</select>`; };
-  const ownerTxt = type => owners(type).map(charName).join(', ') || '–';
-  const block = (key, type, title, desc, holders, btnLabel) => `<div class="charm">
-      <div class="kv"><span>${title}<br><span class="tiny muted">${desc}</span></span></div>
-      <div class="tiny muted">RAW: Besitzer der Facility (${esc(ownerTxt(type))})</div>
-      <div class="chips">${holders || '<span class="tiny muted">niemand aktiv</span>'}</div>
-      <div class="tools" style="margin-top:4px">${sel(key, type)}<button class="btn small" data-a="${key === 'insp' ? 'inspget' : 'charm'}" data-k="${key}">${btnLabel}</button></div>
-    </div>`;
+  const row = (title, desc, owner, right, active) => `<div class="kv"><span><span class="status-dot ${active}"></span>${title}<br><span class="tiny muted">${desc} · nur ${esc(charName(owner))} (Besitzer)</span></span><span style="text-align:right;white-space:nowrap">${right}</span></div>`;
   const out = [];
   for (const k of ['sanctuary','arcane_study']){
-    if (!S.facilities.some(f => f.type === k)) continue;
-    const hs = Object.entries(S.charms[k]).map(([c, u]) => `<span class="chip"><span class="status-dot ok"></span>${esc(charName(c))} · bis Tag ${u} <button class="btn small ghost" data-a="charmuse" data-k="${k}" data-c="${c}">genutzt</button></span>`).join('');
-    out.push(block(k, k, CHARM_NAME[k], k === 'sanctuary' ? 'Healing Word 1× ohne Spell Slot · 1 Tenday oder bis genutzt' : 'Identify 1× ohne Slot/Komponenten · 1 Tenday oder bis genutzt', hs, 'Long Rest'));
+    const o = facOwner(k); if (!o) continue;
+    const u = S.charms[k][o];
+    out.push(row(CHARM_NAME[k], k === 'sanctuary' ? 'Healing Word 1× ohne Spell Slot' : 'Identify 1× ohne Slot/Komponenten', o,
+      u ? `<span class="tiny">bis Tag ${u}</span> <button class="btn small" data-a="charmuse" data-k="${k}" data-c="${o}">genutzt</button>` : `<button class="btn small" data-a="charm" data-k="${k}">Long Rest</button>`, u ? 'ok' : 'off'));
   }
-  if (S.facilities.some(f => f.type === 'workshop')){
-    const hs = Object.entries(S.insp).map(([c, st]) => st === 'has'
-      ? `<span class="chip"><span class="status-dot ok"></span>${esc(charName(c))} · Heroic Inspiration <button class="btn small ghost" data-a="inspuse" data-c="${c}">genutzt</button></span>`
-      : `<span class="chip"><span class="status-dot warn"></span>${esc(charName(c))} · erst nach Long Rest wieder</span>`).join('');
-    out.push(block('insp', 'workshop', 'Workshop · Source of Inspiration', 'Short Rest im Workshop → Heroic Inspiration · 1× pro Long Rest', hs, 'Short Rest'));
+  const wo = facOwner('workshop');
+  if (wo){
+    const st = S.insp[wo];
+    out.push(row('Heroic Inspiration', 'Short Rest im Workshop · 1× pro Long Rest', wo,
+      st === 'has' ? `<span class="tiny">aktiv</span> <button class="btn small" data-a="inspuse" data-c="${wo}">genutzt</button>`
+      : st === 'used' ? `<span class="tiny muted">gesperrt</span> <button class="btn small" data-a="longrest">Long Rest</button>`
+      : `<button class="btn small" data-a="inspget">Short Rest</button>`, st === 'has' ? 'ok' : st === 'used' ? 'warn' : 'off'));
   }
   const gh = S.facilities.some(f => f.type === 'greenhouse');
-  $('#charmPanel').innerHTML = `<h2>Charms &amp; Boni <button class="btn small" data-a="longrest" title="Long Rest der Gruppe: Sperre der Heroic Inspiration aufheben">Long Rest beendet</button></h2>
-    <label class="tiny muted" style="display:flex;gap:6px;align-items:center;margin-bottom:6px"><input type="checkbox" data-a="charmsall" ${S.charmsAll ? 'checked' : ''}> Hausregel: Boni für alle Spieler (sonst nur Facility-Besitzer)</label>
-    ${out.join('<hr class="sep">') || '<div class="tiny muted">Keine Facilities mit Boni.</div>'}
+  $('#charmPanel').innerHTML = `<h2>Charms &amp; Boni <span class="hint">Rast in der Bastion</span></h2>
+    ${out.join('') || '<div class="tiny muted">Keine Facilities mit Boni.</div>'}
     ${gh ? `<hr class="sep"><div class="tiny muted"><b style="color:var(--text);font-weight:normal">Greenhouse · Fruit of Restoration:</b> 3 Früchte (Lesser Restoration), wachsen täglich bei Dawn nach. Kein Befehl nötig, blockiert nichts. Gepflückt 24 h haltbar.</div>` : ''}`;
 }
 function renderKasse(){
@@ -891,11 +885,11 @@ document.addEventListener('click', e => {
     case 'upgrade': { if (!armed(b)) return; const to = CATALOG[f.upgradeTo]; f.type = f.upgradeTo; f.name = to.name; f.label = 'Restauriertes Gewächshaus'; f.notes = ''; delete f.upgradeTo; log(`${to.name} freigeschaltet (Upgrade von Garden 2).`); break; }
     case 'siegel': S.siegel.lastUsed = S.day; log('Siegelring benutzt – Portal zum Anwesen geöffnet.'); break;
     case 'siegelreset': S.siegel.lastUsed = null; log('Siegelring-Cooldown zurückgesetzt.'); break;
-    case 'charm': { const k = b.dataset.k, c = $('#cs_' + k)?.value; if (!c) return;
+    case 'charm': { const k = b.dataset.k, c = facOwner(k); if (!c) return;
       if (S.charms[k][c]){ toast(`${charName(c)} hat den ${CHARM_NAME[k]} noch – erst nach Nutzung/Ablauf neu.`); return; }
       S.charms[k][c] = S.day + 10; log(`${CHARM_NAME[k]} für ${charName(c)} (bis Tag ${S.day + 10}).`); break; }
     case 'charmuse': delete S.charms[b.dataset.k][b.dataset.c]; log(`${CHARM_NAME[b.dataset.k]} von ${charName(b.dataset.c)} eingesetzt.`); break;
-    case 'inspget': { const c = $('#cs_insp')?.value; if (!c) return;
+    case 'inspget': { const c = facOwner('workshop'); if (!c) return;
       if (S.insp[c]){ toast(S.insp[c] === 'has' ? `${charName(c)} hat schon Heroic Inspiration.` : `${charName(c)} bekommt sie erst nach einem Long Rest wieder.`); return; }
       S.insp[c] = 'has'; log(`Heroic Inspiration für ${charName(c)} (Short Rest im Workshop).`); break; }
     case 'inspuse': S.insp[b.dataset.c] = 'used'; log(`${charName(b.dataset.c)} hat Heroic Inspiration eingesetzt.`); break;
@@ -931,7 +925,6 @@ document.addEventListener('change', e => {
     S.facilities.push(fac('f_' + uid(), k, c.name + (n ? ' ' + (n + 1) : ''), '', el.dataset.owner, '', ''));
     log(`Neue Special Facility: ${c.name} (${charById(el.dataset.owner).name}).`); render();
   }
-  else if (a === 'charmsall'){ S.charmsAll = el.checked; log(`Hausregel Boni für alle Spieler: ${S.charmsAll ? 'an' : 'aus'}.`); render(); }
   else if (a === 'notes'){ facById(el.dataset.f).notes = el.value; save(); }
   else if (a === 'preview'){ updatePreview(el.closest('[data-form]')); }
   else if (a === 'wcat'){ UI.formType[el.dataset.f + ':cat'] = el.value; render(); }
