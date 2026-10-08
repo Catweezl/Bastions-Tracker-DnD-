@@ -520,13 +520,13 @@ function completeJob(f, j){
   } else {
     msg = `${j.title} abgeschlossen.`;
   }
-  f.jobs = f.jobs.filter(x => x !== j);
+  f.jobs = f.jobs.filter(x => x !== j); reflow(f);
   log(`${f.name}: ${msg}`); toast(msg);
 }
 function cancelJob(f, j){
   if (j.paid && j.matCP) S.kasseCP += j.matCP;
   if (j.kind === 'sell' && j.items) j.items.forEach(it => addLager(it.name, it.qty, it.unitCP));
-  f.jobs = f.jobs.filter(x => x !== j);
+  f.jobs = f.jobs.filter(x => x !== j); reflow(f);
   log(`${f.name}: Auftrag „${j.title}“ abgebrochen${j.paid && j.matCP ? ' (Kosten erstattet)' : ''}.`);
 }
 
@@ -565,7 +565,7 @@ function jobHTML(f, j){
   const ready = S.day >= j.end;
   return `<div class="job ${ready ? 'done' : ''}">
     <div class="jt"><span>${esc(j.title)}${j.qty > 1 ? ' <span class="muted">×' + j.qty + '</span>' : ''}</span>
-      <span class="badge ${ready ? 'ok' : ''}">${ready ? 'fertig' : 'noch ' + (j.end - S.day) + ' T'}</span></div>
+      <span class="badge ${ready ? 'ok' : ''}">${ready ? 'fertig' : j.start > S.day ? 'wartet · ab Tag ' + j.start : 'noch ' + (j.end - S.day) + ' T'}</span></div>
     <div class="bar"><i style="width:${Math.round(done / total * 100)}%"></i></div>
     <div class="meta">${esc(j.order)} · Tag ${j.start} → ${j.end}${j.hireling ? ' · ' + esc(j.hireling) : ''}${j.matCP ? ' · Kosten ' + fmt(j.matCP) + (j.paid ? '' : ' (extern)') : ''}${j.kind === 'sell' ? ' · Erlös ' + fmt(j.payoutCP) : ''}${j.kind === 'harvest' ? ' · Ertrag ' + esc(j.dice) : ''}${j.info ? ' · ' + esc(j.info) : ''}</div>
     <div class="acts">
@@ -595,14 +595,11 @@ function formHTML(f){
     if (t === 'sanctuary') opts = `<optgroup label="Sanctuary – Flynt Lagan">${optsItems(SANCTUARY, 's')}</optgroup>`;
     if (t === 'arcane_study') opts = `<optgroup label="Arcane Study – Peren">${optsItems(ARCANE, 'a')}</optgroup>`;
     if (t === 'arcane_study' && lvl >= 9) opts += `<optgroup label="Magic Items (ab Stufe 9)">${optsItems(MAGIC_CRAFT, 'm')}</optgroup>`;
-    const bk = basketOf(f), used = bk.reduce((a, b) => a + b.days, 0);
+    const load = facLoad(f);
     body = `${catSel}<label class="f">Gegenstand<select name="item" data-a="preview">${opts}</select></label>
-      <div class="row">${qty}${nameOv}<button class="btn small" data-a="badd" data-f="${f.id}" title="Position zur Order hinzufügen">+ Position</button></div>
+      <div class="row">${qty}${nameOv}</div>
       <div class="preview" data-preview></div>
-      ${bk.length ? `<table class="lager">${bk.map((b, i) => `<tr><td>${esc(b.title)} <span class="muted">×${b.qty}</span></td><td class="num muted">${b.days} T</td><td class="num muted">${fmt(b.matCP)}</td>
-        <td class="num"><button class="btn small ghost danger" data-a="bdel" data-f="${f.id}" data-i="${i}">✕</button></td></tr>`).join('')}
-        <tr><td class="muted">Belegt</td><td class="num">${used} / ${Math.max(TENDAY, used)} T</td><td class="num">${fmt(bk.reduce((a, b) => a + b.matCP, 0))}</td><td></td></tr></table>
-        <div class="bar"><i style="width:${Math.min(100, Math.round(used / TENDAY * 100))}%"></i></div>` : `<div class="tiny muted">Mehrere Positionen pro Order möglich, solange sie zusammen in einen Tenday (${TENDAY} Tage) passen. Ohne Liste wird nur der gewählte Gegenstand bestellt.</div>`}
+      ${f.jobs.length ? `<div class="tiny muted">Auslastung: ${load} / ${TENDAY} Tage belegt – die neue Order startet an Tag ${busyUntil(f)}, wenn die vorherigen fertig sind.</div>` : ''}
       ${paid}`;
     if ((t === 'workshop' || t === 'arcane_study') && lvl < 9) body += `<div class="tiny muted">Magic Items ab Stufe 9 (Besitzer aktuell Stufe ${lvl}).</div>`;
   } else if (t === 'garden' || t === 'greenhouse'){
@@ -644,7 +641,7 @@ function facHTML(f, overLimit){
   const c = CATALOG[f.type] || {name:f.type, order:'–'};
   const lvl = ownerLevel(f);
   const cd = f.cooldownUntil && S.day < f.cooldownUntil;
-  const status = f.jobs.length ? `<span class="badge">${f.jobs.length} Order</span>` : cd ? `<span class="badge warn">Abklingzeit</span>` : `<span class="badge ok">frei</span>`;
+  const status = f.jobs.length ? `<span class="badge">${f.jobs.length} Order${CRAFT_QUEUE.includes(f.type) ? ' · ' + facLoad(f) + '/' + TENDAY + ' T' : ''}</span>` : cd ? `<span class="badge warn">Abklingzeit</span>` : `<span class="badge ok">frei</span>`;
   const owners = S.chars.map(ch => `<option value="${ch.id}" ${ch.id === f.owner ? 'selected' : ''}>${esc(ch.name.split(' ')[0])}</option>`).join('');
   const canUpgrade = f.upgradeTo && lvl >= (CATALOG[f.upgradeTo]?.lvl || 99);
   return `<div class="fac ${overLimit ? 'over' : ''}">
@@ -654,14 +651,14 @@ function facHTML(f, overLimit){
     ${cd ? `<div class="notice">Abklingzeit bis Tag ${f.cooldownUntil} (noch ${f.cooldownUntil - S.day} T)</div>` : ''}
     ${overLimit ? `<div class="notice" style="color:var(--bad)">Über dem Slot-Limit der aktuellen Stufe.</div>` : ''}
     ${f.jobs.map(j => jobHTML(f, j)).join('')}
-    ${UI.openForm === f.id && !f.jobs.length ? formHTML(f) : ''}
+    ${UI.openForm === f.id && canAddOrder(f) ? formHTML(f) : ''}
     <textarea class="notes" placeholder="Notizen…" data-a="notes" data-f="${f.id}">${esc(f.notes)}</textarea>
     <div class="fac-foot">
       <span class="tiny muted">Besitzer <select data-a="owner" data-f="${f.id}" style="font-size:12px;padding:2px 4px">${owners}</select></span>
       <span style="display:flex;gap:6px">
         ${canUpgrade ? `<button class="btn small" data-a="upgrade" data-f="${f.id}">→ ${esc(CATALOG[f.upgradeTo].name)}</button>` : ''}
         <button class="btn small ghost danger" data-a="remove" data-f="${f.id}" title="Facility entfernen">✕</button>
-        ${UI.openForm === f.id ? '' : f.jobs.length ? `<span class="tiny muted" title="Pro Facility nur eine Order gleichzeitig">Order läuft</span>` : `<button class="btn small primary" data-a="openform" data-f="${f.id}">+ Order</button>`}
+        ${UI.openForm === f.id ? '' : canAddOrder(f) ? `<button class="btn small primary" data-a="openform" data-f="${f.id}">+ Order</button>` : `<span class="tiny muted">${CRAFT_QUEUE.includes(f.type) ? 'Tenday ausgelastet' : 'Order läuft'}</span>`}
       </span>
     </div></div>`;
 }
@@ -748,23 +745,23 @@ function renderLog(){
 
 /* ===================== Formular-Logik ===================== */
 const TENDAY = 10;
-const basketOf = f => (UI.basket = UI.basket || {})[f.id] || (UI.basket[f.id] = []);
-function craftPos(f, form){ // aktuelle Auswahl als Position
+const CRAFT_QUEUE = ['workshop','sanctuary','arcane_study'];
+const busyUntil = f => Math.max(S.day, ...f.jobs.map(j => j.end));
+const facLoad = f => busyUntil(f) - S.day; // belegte Tage ab heute
+// Craft-Facilities: weitere Orders erlaubt, solange die Warteschlange < 1 Tenday ist; sonst 1 Order pro Facility
+const canAddOrder = f => !f.jobs.length || (CRAFT_QUEUE.includes(f.type) && facLoad(f) < TENDAY);
+function craftPos(f, form){ // aktuelle Auswahl
   const val = n => form.querySelector(`[name=${n}]`);
   const {it, hireling} = pickItem(f, val('item').value);
   const q = Math.max(1, +val('qty').value || 1);
   return {title:(val('label').value || '').trim() || it[0], qty:q, unitCP:it[1], matCP:it[2] * q, days:it[3] * q, unitDays:it[3], hireling};
 }
-function basketAdd(f){
-  const form = document.querySelector(`[data-form="${f.id}"]`); if (!form) return;
-  const pos = craftPos(f, form), bk = basketOf(f), used = bk.reduce((a, b) => a + b.days, 0);
-  if (bk.length && (used > TENDAY || used + pos.days > TENDAY)){
-    const free = Math.max(0, TENDAY - used), fit = Math.floor(free / pos.unitDays);
-    toast(used >= TENDAY ? 'Der Tenday ist voll.' : `Passt nicht mehr: noch ${free} Tag(e) frei${fit ? ` – maximal ${fit}× ${pos.title}` : ''}.`);
-    return;
-  }
-  if (!bk.length && pos.days > TENDAY) toast(`Dauert ${pos.days} Tage – läuft als Einzelorder über mehrere Tendays.`);
-  bk.push(pos); render();
+function reflow(f){ // wartende Orders rücken nach, wenn eine früher endet oder abgebrochen wird
+  let t = S.day;
+  f.jobs.sort((a, b) => a.start - b.start).forEach(j => {
+    if (j.start > S.day){ const d = j.end - j.start; j.start = Math.max(S.day, t); j.end = j.start + d; }
+    t = Math.max(t, j.end);
+  });
 }
 function pickItem(f, val){
   const [p, i] = val.split('|'); const idx = +i;
@@ -798,9 +795,10 @@ function updatePreview(form){
     return;
   }
   const q = Math.max(1, +form.querySelector('[name=qty]').value || 1);
-  const days = it[3] * q, bk = basketOf(f), used = bk.reduce((a, b) => a + b.days, 0);
-  const free = bk.length ? Math.max(0, TENDAY - used) : TENDAY, fit = Math.floor(free / it[3]);
-  pv.textContent = `Material ${fmt(it[2] * q)} · Dauer ${days} Tag${days > 1 ? 'e' : ''}${it[1] ? ' · Wert ' + fmt(it[1] * q) : ''} · ${fit ? `passt ${fit}× in ${bk.length ? 'den Rest des ' : 'einen '}Tenday` : (bk.length ? 'passt nicht mehr in den Tenday' : 'länger als ein Tenday')}`;
+  const days = it[3] * q, start = busyUntil(f), free = TENDAY - facLoad(f), fit = Math.floor(free / it[3]);
+  const ok = !f.jobs.length || days <= free;
+  pv.textContent = `Material ${fmt(it[2] * q)} · Dauer ${days} Tag${days > 1 ? 'e' : ''} · fertig an Tag ${start + days}${it[1] ? ' · Wert ' + fmt(it[1] * q) : ''} · `
+    + (ok ? (fit > q ? `noch Platz für ${fit}× in diesem Tenday` : (days > TENDAY ? 'länger als ein Tenday (Einzelorder)' : 'füllt den Tenday')) : `passt nicht mehr – noch ${free} Tag(e) frei${fit ? ` (max. ${fit}×)` : ''}`);
 }
 function submitForm(f){
   const form = document.querySelector(`[data-form="${f.id}"]`); if (!form) return;
@@ -809,13 +807,13 @@ function submitForm(f){
   const label = (val('label')?.value || '').trim();
   const t = f.type;
   if (t === 'workshop' || t === 'sanctuary' || t === 'arcane_study'){
-    const bk = basketOf(f).slice(); if (!bk.length) bk.push(craftPos(f, form));
-    const days = bk.reduce((a, b) => a + b.days, 0), mat = bk.reduce((a, b) => a + b.matCP, 0);
-    const one = bk.length === 1;
-    createJob(f, {kind:'craft', order:'Craft', title: one ? bk[0].title : `Sammelorder: ${bk.map(b => b.title + ' ×' + b.qty).join(', ')}`,
-      qty: one ? bk[0].qty : 1, unitCP:bk[0].unitCP, parts:bk.map(b => ({title:b.title, qty:b.qty, unitCP:b.unitCP})),
-      matCP:mat, paid, end:S.day + days, hireling:[...new Set(bk.map(b => b.hireling).filter(Boolean))].join(' / ')});
-    UI.basket[f.id] = [];
+    const pos = craftPos(f, form), free = TENDAY - facLoad(f);
+    if (f.jobs.length && pos.days > free){
+      const fit = Math.floor(free / pos.unitDays);
+      toast(`Passt nicht mehr in den Tenday: noch ${free} Tag(e) frei${fit ? ` – maximal ${fit}× ${pos.title}` : ''}.`); return;
+    }
+    const start = busyUntil(f);
+    createJob(f, {kind:'craft', order:'Craft', title:pos.title, qty:pos.qty, unitCP:pos.unitCP, matCP:pos.matCP, paid, start, end:start + pos.days, hireling:pos.hireling});
   } else if (t === 'garden' || t === 'greenhouse'){
     const its = [pickItem(f, val('item').value).it]; if (val('item2')) its.push(pickItem(f, val('item2').value).it);
     const mix = its.length > 1;
@@ -844,7 +842,9 @@ function submitForm(f){
     const days = Math.max(1, +val('days').value || 10), gp = Math.max(0, +val('gp').value || 0);
     createJob(f, {kind:'generic', order:val('order').value, title:label || (CATALOG[t]?.name || 'Order'), qty:1, matCP:gp * GP, paid, end:S.day + days});
   }
-  UI.openForm = null; render();
+  // Craft: Formular offen lassen, solange noch Platz im Tenday ist
+  if (!(CRAFT_QUEUE.includes(f.type) && canAddOrder(f))) UI.openForm = null;
+  render();
 }
 
 /* ===================== Events ===================== */
@@ -873,11 +873,9 @@ document.addEventListener('click', e => {
       return;
     }
     case 'import': $('#importFile').click(); return;
-    case 'openform': if (f.jobs.length){ toast('Pro Facility nur eine Order gleichzeitig.'); return; } UI.openForm = f.id; break;
-    case 'closeform': if (UI.basket) UI.basket[UI.openForm] = []; UI.openForm = null; break;
-    case 'badd': basketAdd(f); return;
-    case 'bdel': basketOf(f).splice(+b.dataset.i, 1); break;
-    case 'submit': if (f.jobs.length){ toast('Diese Facility hat bereits eine laufende Order.'); return; } submitForm(f); return;
+    case 'openform': if (!canAddOrder(f)){ toast(CRAFT_QUEUE.includes(f.type) ? 'Der Tenday dieser Facility ist ausgelastet.' : 'Pro Facility nur eine Order gleichzeitig.'); return; } UI.openForm = f.id; break;
+    case 'closeform': UI.openForm = null; break;
+    case 'submit': if (!canAddOrder(f)){ toast('Diese Facility ist bereits ausgelastet.'); return; } submitForm(f); return;
     case 'storemode': UI.formType[f.id] = b.dataset.m; break;
     case 'complete': { const j = f.jobs.find(x => x.id === b.dataset.j); if (j) completeJob(f, j); break; }
     case 'cancel': { if (!armed(b)) return; const j = f.jobs.find(x => x.id === b.dataset.j); if (j) cancelJob(f, j); break; }
