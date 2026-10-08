@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "day": 2,
-  "kasseCP": 4850,
+  "day": 0,
+  "kasseCP": 4950,
   "theme": "dark",
   "chars": [
     {
@@ -55,7 +55,7 @@
       "location": "Gartenbereich",
       "jobs": [
         {
-          "id": "zqy3pv2",
+          "id": "x01t65d",
           "start": 0,
           "notified": false,
           "kind": "harvest",
@@ -89,7 +89,7 @@
       "location": "Gartenbereich",
       "jobs": [
         {
-          "id": "ujjrovs",
+          "id": "mnqv7ug",
           "start": 0,
           "notified": false,
           "kind": "harvest",
@@ -124,18 +124,18 @@
       "location": "Nebengebäude EG",
       "jobs": [
         {
-          "id": "3ywt3lu",
+          "id": "9iejwn4",
           "start": 0,
-          "notified": true,
+          "notified": false,
           "kind": "craft",
           "order": "Craft",
-          "title": "Blendpfeile (5 Stk.)",
+          "title": "Arrows (20 Stk.)",
           "qty": 1,
-          "unitCP": 300,
-          "matCP": 150,
+          "unitCP": 100,
+          "matCP": 50,
           "paid": true,
           "end": 1,
-          "hireling": "Am & Boss · Tinker's Tools"
+          "hireling": "Elaynie · Woodcarver's Tools"
         }
       ],
       "cooldownUntil": 0,
@@ -149,7 +149,21 @@
       "owner": "vyrraks",
       "hirelings": "Meister Orlin (Verwalter)",
       "location": "Nebengebäude EG",
-      "jobs": [],
+      "jobs": [
+        {
+          "id": "9ryzvdu",
+          "start": 0,
+          "notified": false,
+          "kind": "buy",
+          "order": "Trade",
+          "title": "Vergoldete Blume für Zauber",
+          "qty": 1,
+          "matCP": 10000,
+          "paid": false,
+          "end": 10,
+          "hireling": "Meister Orlin"
+        }
+      ],
       "cooldownUntil": 0,
       "notes": ""
     }
@@ -164,18 +178,6 @@
   "lager": [],
   "lastEvent": null,
   "log": [
-    {
-      "day": 1,
-      "text": "Fertig: Workshop – Blendpfeile (5 Stk.). Bereit zum Abschließen."
-    },
-    {
-      "day": 0,
-      "text": "Kasse +50 GP."
-    },
-    {
-      "day": 0,
-      "text": "Order (Craft) · Workshop: Blendpfeile (5 Stk.) – fertig an Tag 1, Kosten 1 GP 5 SP."
-    },
     {
       "day": 0,
       "text": "Order (Harvest) · Garden 2: Potion of Healing – fertig an Tag 10."
