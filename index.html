@@ -35,6 +35,8 @@
   .btn.dirty{border-color:var(--warn);color:var(--warn);}
   .gh-row{display:flex;flex-direction:column;gap:6px;}
   .gh-row input{width:100%;}
+  .chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;}
+  .chip{display:inline-flex;align-items:center;gap:4px;font-size:12px;border:1px solid var(--border);border-radius:12px;padding:1px 4px 1px 8px;background:var(--panel2);}
   .btn.armed{background:var(--bad);border-color:var(--bad);color:#fff;}
 
   .btn{background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:5px;padding:6px 11px;cursor:pointer;white-space:nowrap;}
@@ -338,7 +340,7 @@ function defaultState(){
       fac('f_workshop','workshop','Workshop','','vyrraks','Am & Boss Eisenschlag · Elaynie Fadenglanz','Nebengebäude EG'),
       fac('f_store','storehouse','Storehouse','','vyrraks','Meister Orlin (Verwalter)','Nebengebäude EG')
     ],
-    charms:{sanctuary:0, arcane_study:0},
+    charms:{sanctuary:{}, arcane_study:{}}, insp:{}, charmsAll:false,
     siegel:{lastUsed:null},
     lager:[],
     lastEvent:null,
@@ -346,6 +348,20 @@ function defaultState(){
   };
 }
 let S;
+const CHARM_NAME = {sanctuary:'Sanctuary Charm', arcane_study:'Arcane Study Charm'};
+const charName = id => (S.chars.find(c => c.id === id) || {name:id}).name.split(' ')[0];
+function migrate(st){ // ältere Spielstände: Charm als Zahl → pro Charakter
+  st.charms = st.charms || {};
+  for (const k of ['sanctuary','arcane_study']){
+    const v = st.charms[k];
+    if (typeof v !== 'object' || v === null){
+      const f = (st.facilities || []).find(x => x.type === k);
+      st.charms[k] = v > 0 && f ? {[f.owner]: v} : {};
+    }
+  }
+  st.insp = st.insp || {}; if (st.charmsAll == null) st.charmsAll = false;
+  return st;
+}
 try { S = JSON.parse(localStorage.getItem(LS_KEY)) || defaultState(); } catch(e){ S = defaultState(); }
 const UI = {openForm:null, formType:{}};
 function save(){ try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } catch(e){} }
@@ -437,7 +453,7 @@ function advance(n){
     if (!j.notified && S.day >= j.end){ j.notified = true; log(`Fertig: ${f.name} – ${j.title}. Bereit zum Abschließen.`); }
   }));
   S.facilities.forEach(f => { if (f.cooldownUntil && from < f.cooldownUntil && S.day >= f.cooldownUntil) log(`${f.name}: Abklingzeit vorbei.`); });
-  for (const k in S.charms){ if (S.charms[k] && S.day >= S.charms[k]){ S.charms[k] = 0; log(`${k === 'sanctuary' ? 'Sanctuary' : 'Arcane Study'} Charm abgelaufen.`); } }
+  for (const k in S.charms) for (const c in S.charms[k]) if (S.day >= S.charms[k][c]){ delete S.charms[k][c]; log(`${CHARM_NAME[k]} von ${charName(c)} abgelaufen.`); }
   if (S.siegel.lastUsed != null && from < S.siegel.lastUsed + 20 && S.day >= S.siegel.lastUsed + 20) log('Siegelring wieder bereit (Hinreise).');
 }
 
@@ -465,7 +481,7 @@ function setDay(n){
     f.jobs.forEach(j => { j.start = Math.max(0, j.start - d); j.end = Math.max(0, j.end - d); });
     if (f.cooldownUntil) f.cooldownUntil = f.cooldownUntil - d > n ? f.cooldownUntil - d : 0;
   });
-  for (const k in S.charms) if (S.charms[k]) S.charms[k] = S.charms[k] - d > n ? S.charms[k] - d : 0;
+  for (const k in S.charms) for (const c in S.charms[k]){ const u = S.charms[k][c] - d; if (u > n) S.charms[k][c] = u; else delete S.charms[k][c]; }
   if (S.siegel.lastUsed != null) S.siegel.lastUsed -= d;
   S.day = n;
   log(`Tageszähler auf ${n} gesetzt – laufende Orders und Abklingzeiten behalten ihre Restdauer.`);
@@ -516,6 +532,7 @@ function cancelJob(f, j){
 
 /* ===================== Rendering ===================== */
 function render(){
+  migrate(S);
   document.documentElement.setAttribute('data-theme', S.theme);
   $('#themeBtn').textContent = S.theme === 'dark' ? '☀' : '☾';
   $('#dayBig').textContent = 'Tag ' + S.day;
@@ -681,13 +698,32 @@ function renderSiegel(){
     <button class="btn small ghost" data-a="siegelreset">Zurücksetzen</button></div>`;
 }
 function renderCharms(){
-  const rows = [['sanctuary','Sanctuary Charm','Healing Word 1× ohne Spell Slot'],['arcane_study','Arcane Study Charm','Identify 1× ohne Slot/Komponenten']]
-    .filter(([k]) => S.facilities.some(f => f.type === k));
-  const ws = S.facilities.some(f => f.type === 'workshop'), gh = S.facilities.some(f => f.type === 'greenhouse');
-  $('#charmPanel').innerHTML = `<h2>Charms &amp; Boni <span class="hint">nach Long Rest in der Bastion</span></h2>
-    ${rows.map(([k, n, d]) => { const u = S.charms[k]; return `<div class="kv"><span><span class="status-dot ${u ? 'ok' : 'off'}"></span>${n}<br><span class="tiny muted">${d}</span></span>
-      <span>${u ? `<span class="tiny">bis Tag ${u}</span> <button class="btn small" data-a="charmuse" data-k="${k}">genutzt</button>` : `<button class="btn small" data-a="charm" data-k="${k}">Long Rest</button>`}</span></div>`; }).join('') || '<div class="tiny muted">Keine Charm-Facilities.</div>'}
-    ${ws ? `<hr class="sep"><div class="tiny muted"><b style="color:var(--text);font-weight:normal">Workshop · Source of Inspiration:</b> Short Rest im Workshop → Heroic Inspiration (1× pro Long Rest).</div>` : ''}
+  const owners = type => [...new Set(S.facilities.filter(f => f.type === type).map(f => f.owner))];
+  const eligible = type => S.charmsAll ? S.chars.map(c => c.id) : owners(type);
+  const sel = (key, type) => { const ids = eligible(type); return `<select id="cs_${key}" style="font-size:12px;padding:2px 4px">${ids.map(id => `<option value="${id}">${esc(charName(id))}</option>`).join('')}</select>`; };
+  const ownerTxt = type => owners(type).map(charName).join(', ') || '–';
+  const block = (key, type, title, desc, holders, btnLabel) => `<div class="charm">
+      <div class="kv"><span>${title}<br><span class="tiny muted">${desc}</span></span></div>
+      <div class="tiny muted">RAW: Besitzer der Facility (${esc(ownerTxt(type))})</div>
+      <div class="chips">${holders || '<span class="tiny muted">niemand aktiv</span>'}</div>
+      <div class="tools" style="margin-top:4px">${sel(key, type)}<button class="btn small" data-a="${key === 'insp' ? 'inspget' : 'charm'}" data-k="${key}">${btnLabel}</button></div>
+    </div>`;
+  const out = [];
+  for (const k of ['sanctuary','arcane_study']){
+    if (!S.facilities.some(f => f.type === k)) continue;
+    const hs = Object.entries(S.charms[k]).map(([c, u]) => `<span class="chip"><span class="status-dot ok"></span>${esc(charName(c))} · bis Tag ${u} <button class="btn small ghost" data-a="charmuse" data-k="${k}" data-c="${c}">genutzt</button></span>`).join('');
+    out.push(block(k, k, CHARM_NAME[k], k === 'sanctuary' ? 'Healing Word 1× ohne Spell Slot · 1 Tenday oder bis genutzt' : 'Identify 1× ohne Slot/Komponenten · 1 Tenday oder bis genutzt', hs, 'Long Rest'));
+  }
+  if (S.facilities.some(f => f.type === 'workshop')){
+    const hs = Object.entries(S.insp).map(([c, st]) => st === 'has'
+      ? `<span class="chip"><span class="status-dot ok"></span>${esc(charName(c))} · Heroic Inspiration <button class="btn small ghost" data-a="inspuse" data-c="${c}">genutzt</button></span>`
+      : `<span class="chip"><span class="status-dot warn"></span>${esc(charName(c))} · erst nach Long Rest wieder</span>`).join('');
+    out.push(block('insp', 'workshop', 'Workshop · Source of Inspiration', 'Short Rest im Workshop → Heroic Inspiration · 1× pro Long Rest', hs, 'Short Rest'));
+  }
+  const gh = S.facilities.some(f => f.type === 'greenhouse');
+  $('#charmPanel').innerHTML = `<h2>Charms &amp; Boni <button class="btn small" data-a="longrest" title="Long Rest der Gruppe: Sperre der Heroic Inspiration aufheben">Long Rest beendet</button></h2>
+    <label class="tiny muted" style="display:flex;gap:6px;align-items:center;margin-bottom:6px"><input type="checkbox" data-a="charmsall" ${S.charmsAll ? 'checked' : ''}> Hausregel: Boni für alle Spieler (sonst nur Facility-Besitzer)</label>
+    ${out.join('<hr class="sep">') || '<div class="tiny muted">Keine Facilities mit Boni.</div>'}
     ${gh ? `<hr class="sep"><div class="tiny muted"><b style="color:var(--text);font-weight:normal">Greenhouse · Fruit of Restoration:</b> 3 Früchte (Lesser Restoration), wachsen täglich bei Dawn nach. Kein Befehl nötig, blockiert nichts. Gepflückt 24 h haltbar.</div>` : ''}`;
 }
 function renderKasse(){
@@ -855,8 +891,16 @@ document.addEventListener('click', e => {
     case 'upgrade': { if (!armed(b)) return; const to = CATALOG[f.upgradeTo]; f.type = f.upgradeTo; f.name = to.name; f.label = 'Restauriertes Gewächshaus'; f.notes = ''; delete f.upgradeTo; log(`${to.name} freigeschaltet (Upgrade von Garden 2).`); break; }
     case 'siegel': S.siegel.lastUsed = S.day; log('Siegelring benutzt – Portal zum Anwesen geöffnet.'); break;
     case 'siegelreset': S.siegel.lastUsed = null; log('Siegelring-Cooldown zurückgesetzt.'); break;
-    case 'charm': S.charms[b.dataset.k] = S.day + 10; log(`${b.dataset.k === 'sanctuary' ? 'Sanctuary' : 'Arcane Study'} Charm erhalten (bis Tag ${S.day + 10}).`); break;
-    case 'charmuse': S.charms[b.dataset.k] = 0; log(`${b.dataset.k === 'sanctuary' ? 'Sanctuary' : 'Arcane Study'} Charm eingesetzt.`); break;
+    case 'charm': { const k = b.dataset.k, c = $('#cs_' + k)?.value; if (!c) return;
+      if (S.charms[k][c]){ toast(`${charName(c)} hat den ${CHARM_NAME[k]} noch – erst nach Nutzung/Ablauf neu.`); return; }
+      S.charms[k][c] = S.day + 10; log(`${CHARM_NAME[k]} für ${charName(c)} (bis Tag ${S.day + 10}).`); break; }
+    case 'charmuse': delete S.charms[b.dataset.k][b.dataset.c]; log(`${CHARM_NAME[b.dataset.k]} von ${charName(b.dataset.c)} eingesetzt.`); break;
+    case 'inspget': { const c = $('#cs_insp')?.value; if (!c) return;
+      if (S.insp[c]){ toast(S.insp[c] === 'has' ? `${charName(c)} hat schon Heroic Inspiration.` : `${charName(c)} bekommt sie erst nach einem Long Rest wieder.`); return; }
+      S.insp[c] = 'has'; log(`Heroic Inspiration für ${charName(c)} (Short Rest im Workshop).`); break; }
+    case 'inspuse': S.insp[b.dataset.c] = 'used'; log(`${charName(b.dataset.c)} hat Heroic Inspiration eingesetzt.`); break;
+    case 'longrest': { let n = 0; for (const c in S.insp) if (S.insp[c] === 'used'){ delete S.insp[c]; n++; }
+      log('Long Rest beendet' + (n ? ' – Source of Inspiration wieder verfügbar.' : '.')); toast('Long Rest eingetragen.'); break; }
     case 'kasse': { const v = +$('#kasseIn').value; if (!v) return; S.kasseCP += Math.round(v * GP) * +b.dataset.s; log(`Kasse ${+b.dataset.s > 0 ? '+' : '−'}${fmt(Math.abs(v * GP))}.`); break; }
     case 'lq': { const it = S.lager.find(x => x.id === b.dataset.id); if (!it) return; it.qty += +b.dataset.d; if (it.qty <= 0) S.lager = S.lager.filter(x => x !== it); break; }
     case 'ldel': S.lager = S.lager.filter(x => x.id !== b.dataset.id); break;
@@ -887,6 +931,7 @@ document.addEventListener('change', e => {
     S.facilities.push(fac('f_' + uid(), k, c.name + (n ? ' ' + (n + 1) : ''), '', el.dataset.owner, '', ''));
     log(`Neue Special Facility: ${c.name} (${charById(el.dataset.owner).name}).`); render();
   }
+  else if (a === 'charmsall'){ S.charmsAll = el.checked; log(`Hausregel Boni für alle Spieler: ${S.charmsAll ? 'an' : 'aus'}.`); render(); }
   else if (a === 'notes'){ facById(el.dataset.f).notes = el.value; save(); }
   else if (a === 'preview'){ updatePreview(el.closest('[data-form]')); }
   else if (a === 'wcat'){ UI.formType[el.dataset.f + ':cat'] = el.value; render(); }
