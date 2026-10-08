@@ -1,0 +1,188 @@
+{
+  "version": 1,
+  "day": 2,
+  "kasseCP": 4850,
+  "theme": "dark",
+  "chars": [
+    {
+      "id": "kaelan",
+      "name": "Kaelan Nachtfluch",
+      "level": 5
+    },
+    {
+      "id": "aelar",
+      "name": "Aelar Frostschatten",
+      "level": 5
+    },
+    {
+      "id": "vyrraks",
+      "name": "Vyrraks der Schleicher",
+      "level": 5
+    }
+  ],
+  "facilities": [
+    {
+      "id": "f_sanct",
+      "type": "sanctuary",
+      "name": "Sanctuary",
+      "label": "Kapelle der Ruhenden Flamme",
+      "owner": "kaelan",
+      "hirelings": "Flynt Lagan (Hauskaplan)",
+      "location": "Rechts vom Haupthaus",
+      "jobs": [],
+      "cooldownUntil": 0,
+      "notes": ""
+    },
+    {
+      "id": "f_arcane",
+      "type": "arcane_study",
+      "name": "Arcane Study",
+      "label": "",
+      "owner": "kaelan",
+      "hirelings": "Peren Graumantel (Butler)",
+      "location": "Haupthaus EG · Geheimtür zum Keller",
+      "jobs": [],
+      "cooldownUntil": 0,
+      "notes": ""
+    },
+    {
+      "id": "f_garden1",
+      "type": "garden",
+      "name": "Garden 1",
+      "label": "Offene Beete",
+      "owner": "aelar",
+      "hirelings": "Gon Grünmoos · Della Ahrenfeld",
+      "location": "Gartenbereich",
+      "jobs": [
+        {
+          "id": "zqy3pv2",
+          "start": 0,
+          "notified": false,
+          "kind": "harvest",
+          "order": "Harvest",
+          "qty": 1,
+          "end": 10,
+          "mix": false,
+          "title": "Potion of Healing",
+          "dice": "1W4",
+          "cooldown": 0,
+          "parts": [
+            {
+              "title": "Potion of Healing",
+              "dice": "1W4",
+              "unitCP": 5000
+            }
+          ],
+          "info": "Einfach · Gewöhnliche Heilkräuter · 2W4+2 HP"
+        }
+      ],
+      "cooldownUntil": 0,
+      "notes": ""
+    },
+    {
+      "id": "f_garden2",
+      "type": "garden",
+      "name": "Garden 2",
+      "label": "Zerfallenes Gewächshaus",
+      "owner": "aelar",
+      "hirelings": "Gon Grünmoos · Della Ahrenfeld",
+      "location": "Gartenbereich",
+      "jobs": [
+        {
+          "id": "ujjrovs",
+          "start": 0,
+          "notified": false,
+          "kind": "harvest",
+          "order": "Harvest",
+          "qty": 1,
+          "end": 10,
+          "mix": false,
+          "title": "Potion of Healing",
+          "dice": "1W4",
+          "cooldown": 0,
+          "parts": [
+            {
+              "title": "Potion of Healing",
+              "dice": "1W4",
+              "unitCP": 5000
+            }
+          ],
+          "info": "Einfach · Gewöhnliche Heilkräuter · 2W4+2 HP"
+        }
+      ],
+      "cooldownUntil": 0,
+      "notes": "Glasdach marode – nur als einfacher Garten nutzbar. Restaurierung → Greenhouse ab Level 9.",
+      "upgradeTo": "greenhouse"
+    },
+    {
+      "id": "f_workshop",
+      "type": "workshop",
+      "name": "Workshop",
+      "label": "",
+      "owner": "vyrraks",
+      "hirelings": "Am & Boss Eisenschlag · Elaynie Fadenglanz",
+      "location": "Nebengebäude EG",
+      "jobs": [
+        {
+          "id": "3ywt3lu",
+          "start": 0,
+          "notified": true,
+          "kind": "craft",
+          "order": "Craft",
+          "title": "Blendpfeile (5 Stk.)",
+          "qty": 1,
+          "unitCP": 300,
+          "matCP": 150,
+          "paid": true,
+          "end": 1,
+          "hireling": "Am & Boss · Tinker's Tools"
+        }
+      ],
+      "cooldownUntil": 0,
+      "notes": ""
+    },
+    {
+      "id": "f_store",
+      "type": "storehouse",
+      "name": "Storehouse",
+      "label": "",
+      "owner": "vyrraks",
+      "hirelings": "Meister Orlin (Verwalter)",
+      "location": "Nebengebäude EG",
+      "jobs": [],
+      "cooldownUntil": 0,
+      "notes": ""
+    }
+  ],
+  "charms": {
+    "sanctuary": 0,
+    "arcane_study": 0
+  },
+  "siegel": {
+    "lastUsed": null
+  },
+  "lager": [],
+  "lastEvent": null,
+  "log": [
+    {
+      "day": 1,
+      "text": "Fertig: Workshop – Blendpfeile (5 Stk.). Bereit zum Abschließen."
+    },
+    {
+      "day": 0,
+      "text": "Kasse +50 GP."
+    },
+    {
+      "day": 0,
+      "text": "Order (Craft) · Workshop: Blendpfeile (5 Stk.) – fertig an Tag 1, Kosten 1 GP 5 SP."
+    },
+    {
+      "day": 0,
+      "text": "Order (Harvest) · Garden 2: Potion of Healing – fertig an Tag 10."
+    },
+    {
+      "day": 0,
+      "text": "Order (Harvest) · Garden 1: Potion of Healing – fertig an Tag 10."
+    }
+  ]
+}
