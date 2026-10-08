@@ -154,8 +154,8 @@
     }
   ],
   "charms": {
-    "sanctuary": 0,
-    "arcane_study": 0
+    "sanctuary": 12,
+    "arcane_study": 12
   },
   "siegel": {
     "lastUsed": null
@@ -170,6 +170,14 @@
   ],
   "lastEvent": null,
   "log": [
+    {
+      "day": 2,
+      "text": "Arcane Study Charm erhalten (bis Tag 12)."
+    },
+    {
+      "day": 2,
+      "text": "Sanctuary Charm erhalten (bis Tag 12)."
+    },
     {
       "day": 2,
       "text": "Workshop: Blendpfeile (5 Stk.) ×1 ins Lager."
