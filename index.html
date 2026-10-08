@@ -274,24 +274,23 @@ const SANCTUARY = [
 const ARCANE = [['Arcane Focus',20*GP,0,10],['Leeres Buch',25*GP,10*GP,10]];
 
 // Homebrew Garden / Greenhouse: [Produkt, Würfel, Abklingzeit in Tagen, Wert pro Stück in CP (0 = unbekannt), Info, Kategorie A/B]
-const HARVEST = {
+const HARVEST = { // Quelle: Homebrew - Greenhouse - Bastion (Version 2)
   garden:[
-    ['Potion of Healing','1W4',0,50*GP,'Heilkräuter (einfach) · 2W4+2 HP','A'],
-    ['Basic Poison','1W4',0,100*GP,'Injury · CON 10 · +1W4 Gift, 1 Min.','B'],
-    ["Assassin's Blood",'1W4',0,0,'Ingested · CON 10 · 1W12 + Poisoned 24h','B']
+    ['Potion of Healing','1W6',0,50*GP,'Einfach · Gewöhnliche Heilkräuter · 2W4+2 HP','A'],
+    ['Potion of Greater Healing','1W2',10,0,'Mittel · Konzentrierte Meisterwurz · 4W4+4 HP','A'],
+    ['Basic Poison','1W6',0,100*GP,'Einfach · Injury · +1W4 Gift, 1 Min.','B'],
+    ["Assassin's Blood",'1W2',10,0,'Mittel · Ingested · CON 10 · 1W12 + Poisoned 24h','B']
   ],
   greenhouse:[
-    ['Potion of Healing','1W6',0,50*GP,'Einfach · 2W4+2 HP','A'],
-    ['Potion of Greater Healing','1W4',10,0,'Mittel · 4W4+4 HP','A'],
-    ['Potion of Superior Healing','1W2',20,0,'Schwer · 8W4+8 HP','A'],
-    ['Fruit of Restoration (3 Früchte)','1W1',0,0,'Lesser Restoration · 24h haltbar','A'],
-    ['Basic Poison','1W6',0,100*GP,'Einfach · Injury · CON 10','B'],
-    ["Assassin's Blood",'1W6',0,0,'Einfach · Ingested · CON 10','B'],
-    ['Malice','1W4',10,0,'Mittel · Inhaled · CON 15','B'],
-    ['Oil of Taggit','1W4',10,0,'Mittel · Contact · CON 13','B'],
-    ['Truth Serum','1W4',10,0,'Mittel · Ingested · CON 11','B'],
-    ['Pale Tincture','1W2',20,0,'Schwer · Ingested · CON 16','B'],
-    ['Torpor','1W2',20,0,'Schwer · Ingested · CON 15','B']
+    ['Potion of Healing','1W6',0,50*GP,'Einfach · Gewöhnliche Heilkräuter · 2W4+2 HP','A'],
+    ['Potion of Greater Healing','1W4',10,0,'Mittel · Konzentrierte Meisterwurz · 4W4+4 HP','A'],
+    ['Potion of Superior Healing','1W2',20,0,'Schwer · Seltene Königsblüte · 8W4+8 HP','A'],
+    ['Basic Poison','1W6',0,100*GP,'Einfach · Injury · +1W4 Gift, 1 Min.','B'],
+    ["Assassin's Blood",'1W4',10,0,'Mittel · Ingested · CON 10','B'],
+    ['Malice','1W4',10,0,'Mittel · Gas-Pilze · Inhaled · CON 15','B'],
+    ['Oil of Taggit','1W4',10,0,'Mittel · Pflanzenextrakt · Contact · CON 13','B'],
+    ['Pale Tincture','1W2',20,0,'Schwer · Nekrotische Flora · Ingested · CON 16','B'],
+    ['Torpor','1W2',20,0,'Schwer · Wüstenkräuter · Ingested · CON 15','B']
   ]
 };
 const STORE_LIMIT = lvl => lvl >= 13 ? 5000*GP : lvl >= 9 ? 2000*GP : 500*GP;
@@ -499,7 +498,7 @@ function formHTML(f){
       <div class="row">${qty}${nameOv}</div>${paid}<div class="preview" data-preview></div>`;
     if ((t === 'workshop' || t === 'arcane_study') && lvl < 9) body += `<div class="tiny muted">Magic Items ab Stufe 9 (Besitzer aktuell Stufe ${lvl}).</div>`;
   } else if (t === 'garden' || t === 'greenhouse'){
-    const list = HARVEST[t], mixOk = t === 'greenhouse';
+    const list = HARVEST[t], mixOk = true;
     let mode = UI.formType[f.id] || 'A'; if (mode === 'mix' && !mixOk) mode = 'A';
     const blocked = f.cooldownUntil && S.day < f.cooldownUntil;
     const sel = (cat, name, lbl) => `<label class="f">${lbl}<select name="${name}" data-a="preview">${list.map((h, i) => [h, i]).filter(([h]) => h[5] === cat)
@@ -509,9 +508,7 @@ function formHTML(f){
       <button class="btn small ${mode === 'B' ? 'primary' : ''}" data-a="storemode" data-f="${f.id}" data-m="B">Gifte</button>
       <button class="btn small ${mode === 'mix' ? 'primary' : ''}" data-a="storemode" data-f="${f.id}" data-m="mix" ${mixOk ? '' : 'disabled title="Mischbetrieb erst ab Greenhouse (Stufe 9)"'}>Mischbetrieb</button></div>
       ${mode === 'mix' ? sel('A', 'item', 'Kategorie A – Heilkräuter') + sel('B', 'item2', 'Kategorie B – Gifte') : sel(mode, 'item', mode === 'A' ? 'Kategorie A – Heilkräuter' : 'Kategorie B – Gifte')}
-      <div class="preview" data-preview></div><div class="tiny muted">Harvest dauert 1 Tenday, Ertrag wird beim Abschließen gewürfelt. ${mixOk
-        ? 'Mischbetrieb: Ertrag beider Kategorien halbiert (aufgerundet, min. 1); die längere Abklingzeit blockiert die Anlage.'
-        : 'Garden: Heilkräuter ODER Gifte – kein Mischbetrieb (erst ab Greenhouse, Stufe 9).'}</div>`;
+      <div class="preview" data-preview></div><div class="tiny muted">Harvest dauert 1 Tenday, Ertrag wird beim Abschließen gewürfelt. Mischbetrieb: Ertrag beider Kategorien halbiert (aufgerundet, min. 1); die längere Abklingzeit blockiert die Anlage.</div>`;
   } else if (t === 'storehouse'){
     const mode = UI.formType[f.id] || 'buy';
     const limit = STORE_LIMIT(lvl), mk = STORE_MARKUP(lvl);
@@ -595,11 +592,12 @@ function renderSiegel(){
 function renderCharms(){
   const rows = [['sanctuary','Sanctuary Charm','Healing Word 1× ohne Spell Slot'],['arcane_study','Arcane Study Charm','Identify 1× ohne Slot/Komponenten']]
     .filter(([k]) => S.facilities.some(f => f.type === k));
-  const ws = S.facilities.some(f => f.type === 'workshop');
+  const ws = S.facilities.some(f => f.type === 'workshop'), gh = S.facilities.some(f => f.type === 'greenhouse');
   $('#charmPanel').innerHTML = `<h2>Charms &amp; Boni <span class="hint">nach Long Rest in der Bastion</span></h2>
     ${rows.map(([k, n, d]) => { const u = S.charms[k]; return `<div class="kv"><span><span class="status-dot ${u ? 'ok' : 'off'}"></span>${n}<br><span class="tiny muted">${d}</span></span>
       <span>${u ? `<span class="tiny">bis Tag ${u}</span> <button class="btn small" data-a="charmuse" data-k="${k}">genutzt</button>` : `<button class="btn small" data-a="charm" data-k="${k}">Long Rest</button>`}</span></div>`; }).join('') || '<div class="tiny muted">Keine Charm-Facilities.</div>'}
-    ${ws ? `<hr class="sep"><div class="tiny muted"><b style="color:var(--text);font-weight:normal">Workshop · Source of Inspiration:</b> Short Rest im Workshop → Heroic Inspiration (1× pro Long Rest).</div>` : ''}`;
+    ${ws ? `<hr class="sep"><div class="tiny muted"><b style="color:var(--text);font-weight:normal">Workshop · Source of Inspiration:</b> Short Rest im Workshop → Heroic Inspiration (1× pro Long Rest).</div>` : ''}
+    ${gh ? `<hr class="sep"><div class="tiny muted"><b style="color:var(--text);font-weight:normal">Greenhouse · Fruit of Restoration:</b> 3 Früchte (Lesser Restoration), wachsen täglich bei Dawn nach. Kein Befehl nötig, blockiert nichts. Gepflückt 24 h haltbar.</div>` : ''}`;
 }
 function renderKasse(){
   const total = S.lager.reduce((a, it) => a + (it.unitCP || 0) * it.qty, 0);
