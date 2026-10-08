@@ -936,6 +936,8 @@ $('#importFile').addEventListener('change', e => {
   r.onload = () => { try { const d = JSON.parse(r.result); if (!d.facilities || !d.chars) throw 0; S = d; UI.openForm = null; log('Spielstand importiert.'); render(); toast('Import erfolgreich.'); } catch(err){ toast('Ungültige Datei.'); } };
   r.readAsText(file); e.target.value = '';
 });
+// Fehler sichtbar machen statt still zu scheitern
+window.addEventListener('error', e => { try { toast('Fehler: ' + (e.message || 'unbekannt')); log('Technischer Fehler: ' + (e.message || 'unbekannt') + (e.lineno ? ' (Zeile ' + e.lineno + ')' : '')); save(); renderLog(); } catch(_){} });
 window.addEventListener('beforeunload', e => { if (GH.token && ghDirty()){ e.preventDefault(); e.returnValue = ''; } });
 render();
 </script>
