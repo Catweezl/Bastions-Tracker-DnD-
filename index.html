@@ -32,6 +32,9 @@
   .tools{display:flex;gap:6px;flex-wrap:wrap;}
   .dayset{display:inline-flex;gap:4px;align-items:center;}
   .dayset input{width:64px;}
+  .btn.dirty{border-color:var(--warn);color:var(--warn);}
+  .gh-row{display:flex;flex-direction:column;gap:6px;}
+  .gh-row input{width:100%;}
   .btn.armed{background:var(--bad);border-color:var(--bad);color:#fff;}
 
   .btn{background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:5px;padding:6px 11px;cursor:pointer;white-space:nowrap;}
@@ -146,6 +149,8 @@
       </div>
     </div>
     <div class="tools">
+      <button class="btn small" data-a="ghsave" id="ghSaveBtn" title="Spielstand im GitHub-Repo speichern">☁ Speichern</button>
+      <button class="btn ghost small" data-a="ghload" title="Spielstand aus dem GitHub-Repo laden">☁ Laden</button>
       <button class="btn ghost small" data-a="export">Export</button>
       <button class="btn ghost small" data-a="import">Import</button>
       <button class="btn ghost small" data-a="theme" id="themeBtn">☀</button>
@@ -171,6 +176,7 @@
       <section class="panel" id="kassePanel"></section>
       <section class="panel" id="eventPanel"></section>
       <section class="panel" id="logPanel"></section>
+      <section class="panel" id="ghPanel"></section>
     </aside>
   </div>
   <footer>Inoffizielles Fan-Tool unter der Fan Content Policy von Wizards of the Coast. Daten werden lokal im Browser gespeichert – zur Sicherung regelmäßig exportieren.</footer>
@@ -343,6 +349,82 @@ let S;
 try { S = JSON.parse(localStorage.getItem(LS_KEY)) || defaultState(); } catch(e){ S = defaultState(); }
 const UI = {openForm:null, formType:{}};
 function save(){ try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } catch(e){} }
+
+/* ===================== GitHub-Speicher ===================== */
+// Einstellungen inkl. Token liegen NUR lokal im Browser (eigener Schlüssel, nie im Export/Spielstand)
+const GH_KEY = 'dessarin-bastion-github';
+const GH_DEFAULT = {owner:'Catweezl', repo:'Bastions-Tracker-DnD-', branch:'main', path:'daten/bastion-stand.json', token:'', lastSync:null, syncedJSON:null};
+let GH;
+try { GH = Object.assign({}, GH_DEFAULT, JSON.parse(localStorage.getItem(GH_KEY)) || {}); } catch(e){ GH = Object.assign({}, GH_DEFAULT); }
+function ghStore(){ try { localStorage.setItem(GH_KEY, JSON.stringify(GH)); } catch(e){} }
+const ghUrl = () => `https://api.github.com/repos/${encodeURIComponent(GH.owner)}/${encodeURIComponent(GH.repo)}/contents/${GH.path.split('/').map(encodeURIComponent).join('/')}`;
+const ghHeaders = () => ({'Authorization':'Bearer ' + GH.token, 'Accept':'application/vnd.github+json', 'X-GitHub-Api-Version':'2022-11-28'});
+const b64enc = str => btoa(unescape(encodeURIComponent(str)));
+const b64dec = b64 => decodeURIComponent(escape(atob(b64.replace(/\s/g, ''))));
+const stateJSON = () => JSON.stringify(S, null, 2);
+const ghDirty = () => GH.syncedJSON !== stateJSON();
+function ghErr(r){
+  if (r.status === 401) return 'Token ungültig oder abgelaufen.';
+  if (r.status === 403) return 'Keine Berechtigung – Token braucht „Contents: Read and write“ für dieses Repo.';
+  if (r.status === 404) return 'Repo/Branch nicht gefunden oder Token hat keinen Zugriff darauf.';
+  if (r.status === 409) return 'Konflikt – die Datei wurde zwischenzeitlich geändert. Erst laden, dann speichern.';
+  return 'GitHub-Fehler ' + r.status + '.';
+}
+async function ghGetFile(){
+  const r = await fetch(ghUrl() + '?ref=' + encodeURIComponent(GH.branch) + '&t=' + Date.now(), {headers:ghHeaders(), cache:'no-store'});
+  if (r.status === 404) return null;
+  if (!r.ok) throw new Error(ghErr(r));
+  return r.json();
+}
+let ghBusy = false;
+async function ghSave(){
+  if (!GH.token){ UI.ghOpen = true; render(); toast('Bitte zuerst den GitHub-Token unter „GitHub-Speicher“ eintragen.'); return; }
+  if (ghBusy) return; ghBusy = true; toast('Speichere auf GitHub …');
+  try {
+    const cur = await ghGetFile();
+    const body = {message:`Bastion-Stand Tag ${S.day} (Tenday ${tendayOf(S.day)})`, content:b64enc(stateJSON()), branch:GH.branch};
+    if (cur && cur.sha) body.sha = cur.sha;
+    const r = await fetch(ghUrl(), {method:'PUT', headers:Object.assign({'Content-Type':'application/json'}, ghHeaders()), body:JSON.stringify(body)});
+    if (!r.ok) throw new Error(ghErr(r));
+    GH.syncedJSON = stateJSON(); GH.lastSync = new Date().toISOString(); ghStore();
+    toast('Auf GitHub gespeichert ✓');
+  } catch(e){ toast(e.message || 'Speichern fehlgeschlagen (Netzwerk?).'); }
+  ghBusy = false; render();
+}
+async function ghLoad(){
+  if (!GH.token){ UI.ghOpen = true; render(); toast('Bitte zuerst den GitHub-Token unter „GitHub-Speicher“ eintragen.'); return; }
+  if (ghBusy) return; ghBusy = true; toast('Lade von GitHub …');
+  try {
+    const cur = await ghGetFile();
+    if (!cur){ toast('Noch kein Spielstand auf GitHub – erst einmal speichern.'); }
+    else {
+      const d = JSON.parse(b64dec(cur.content));
+      if (!d.facilities || !d.chars) throw new Error('Datei auf GitHub ist kein gültiger Spielstand.');
+      S = d; UI.openForm = null;
+      GH.syncedJSON = stateJSON(); GH.lastSync = new Date().toISOString(); ghStore();
+      toast(`Von GitHub geladen ✓ (Tag ${S.day})`);
+    }
+  } catch(e){ toast(e.message || 'Laden fehlgeschlagen (Netzwerk?).'); }
+  ghBusy = false; render();
+}
+function renderGh(){
+  const dirty = ghDirty(), btn = $('#ghSaveBtn');
+  btn.classList.toggle('dirty', !!GH.token && dirty);
+  btn.textContent = GH.token && dirty ? '☁ Speichern •' : '☁ Speichern';
+  const last = GH.lastSync ? new Date(GH.lastSync).toLocaleString('de-DE', {dateStyle:'short', timeStyle:'short'}) : 'noch nie';
+  $('#ghPanel').innerHTML = `<h2>GitHub-Speicher <button class="btn small ghost" data-a="ghtoggle">${UI.ghOpen ? 'schließen' : 'Einstellungen'}</button></h2>
+    <div class="kv"><span><span class="status-dot ${!GH.token ? 'off' : dirty ? 'warn' : 'ok'}"></span>${!GH.token ? 'Nicht eingerichtet' : dirty ? 'Ungespeicherte Änderungen' : 'Synchron mit GitHub'}</span><span class="tiny muted">${last}</span></div>
+    <div class="tiny muted">Datei: ${esc(GH.owner)}/${esc(GH.repo)} · ${esc(GH.branch)} · ${esc(GH.path)}</div>
+    ${UI.ghOpen ? `<hr class="sep"><div class="gh-row">
+      <label class="f">Token (fine-grained, nur dieses Repo, „Contents: Read and write“)<input type="password" id="ghToken" value="${esc(GH.token)}" placeholder="github_pat_…" autocomplete="off"></label>
+      <label class="f">Besitzer<input id="ghOwner" value="${esc(GH.owner)}"></label>
+      <label class="f">Repo<input id="ghRepo" value="${esc(GH.repo)}"></label>
+      <label class="f">Branch<input id="ghBranch" value="${esc(GH.branch)}"></label>
+      <label class="f">Dateipfad<input id="ghPath" value="${esc(GH.path)}"></label>
+      <div class="tools"><button class="btn small primary" data-a="ghset">Übernehmen</button><button class="btn small ghost danger" data-a="ghforget">Token löschen</button></div>
+      <div class="tiny muted">Der Token bleibt nur in diesem Browser gespeichert – nicht im Spielstand, nicht im Repo. Auf jedem Gerät einmal eintragen.</div>
+    </div>` : ''}`;
+}
 function log(text){ S.log.unshift({day:S.day, text}); if (S.log.length > 400) S.log.length = 400; }
 const charById = id => S.chars.find(c => c.id === id);
 const facById = id => S.facilities.find(f => f.id === id);
@@ -436,7 +518,7 @@ function render(){
   $('#themeBtn').textContent = S.theme === 'dark' ? '☀' : '☾';
   $('#dayBig').textContent = 'Tag ' + S.day;
   $('#daySmall').textContent = `Tenday ${tendayOf(S.day)} · Tag ${dayInTenday(S.day)}/10`;
-  renderChars(); renderFacilities(); renderSiegel(); renderCharms(); renderKasse(); renderEvents(); renderLog();
+  renderChars(); renderFacilities(); renderSiegel(); renderCharms(); renderKasse(); renderEvents(); renderLog(); renderGh();
   markArmed();
   save();
 }
@@ -712,6 +794,15 @@ document.addEventListener('click', e => {
     case 'setday': { const v = $('#dayIn').value; if (v === '' || +v < 0){ toast('Bitte einen Tag ≥ 0 eingeben.'); return; } setDay(Math.floor(+v)); break; }
     case 'resetday': if (S.day === 0) { toast('Zähler steht bereits auf 0.'); return; } if (!armed(b)) return; setDay(0); break;
     case 'theme': S.theme = S.theme === 'dark' ? 'light' : 'dark'; break;
+    case 'ghsave': ghSave(); return;
+    case 'ghload': if (GH.token && ghDirty() && !armed(b)) return; ghLoad(); return;
+    case 'ghtoggle': UI.ghOpen = !UI.ghOpen; break;
+    case 'ghset': {
+      const v = id => $('#' + id).value.trim();
+      Object.assign(GH, {token:v('ghToken'), owner:v('ghOwner') || GH_DEFAULT.owner, repo:v('ghRepo') || GH_DEFAULT.repo, branch:v('ghBranch') || 'main', path:(v('ghPath') || GH_DEFAULT.path).replace(/^\/+/, '')});
+      GH.syncedJSON = null; ghStore(); UI.ghOpen = false; toast(GH.token ? 'GitHub-Speicher eingerichtet.' : 'Einstellungen übernommen.'); break;
+    }
+    case 'ghforget': if (!armed(b)) return; GH.token = ''; GH.syncedJSON = null; ghStore(); toast('Token aus diesem Browser gelöscht.'); break;
     case 'export': {
       const blob = new Blob([JSON.stringify(S, null, 2)], {type:'application/json'});
       const u = URL.createObjectURL(blob), l = document.createElement('a');
@@ -772,6 +863,7 @@ $('#importFile').addEventListener('change', e => {
   r.onload = () => { try { const d = JSON.parse(r.result); if (!d.facilities || !d.chars) throw 0; S = d; UI.openForm = null; log('Spielstand importiert.'); render(); toast('Import erfolgreich.'); } catch(err){ toast('Ungültige Datei.'); } };
   r.readAsText(file); e.target.value = '';
 });
+window.addEventListener('beforeunload', e => { if (GH.token && ghDirty()){ e.preventDefault(); e.returnValue = ''; } });
 render();
 </script>
 </body>
