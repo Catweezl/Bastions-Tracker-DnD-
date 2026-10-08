@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "day": 0,
+  "day": 2,
   "kasseCP": 4950,
   "theme": "dark",
   "chars": [
@@ -122,22 +122,7 @@
       "owner": "vyrraks",
       "hirelings": "Am & Boss Eisenschlag · Elaynie Fadenglanz",
       "location": "Nebengebäude EG",
-      "jobs": [
-        {
-          "id": "9iejwn4",
-          "start": 0,
-          "notified": false,
-          "kind": "craft",
-          "order": "Craft",
-          "title": "Arrows (20 Stk.)",
-          "qty": 1,
-          "unitCP": 100,
-          "matCP": 50,
-          "paid": true,
-          "end": 1,
-          "hireling": "Elaynie · Woodcarver's Tools"
-        }
-      ],
+      "jobs": [],
       "cooldownUntil": 0,
       "notes": ""
     },
@@ -175,9 +160,24 @@
   "siegel": {
     "lastUsed": null
   },
-  "lager": [],
+  "lager": [
+    {
+      "id": "vjhj0h5",
+      "name": "Arrows (20 Stk.)",
+      "qty": 1,
+      "unitCP": 100
+    }
+  ],
   "lastEvent": null,
   "log": [
+    {
+      "day": 2,
+      "text": "Workshop: Arrows (20 Stk.) ×1 ins Lager."
+    },
+    {
+      "day": 1,
+      "text": "Fertig: Workshop – Arrows (20 Stk.). Bereit zum Abschließen."
+    },
     {
       "day": 0,
       "text": "Order (Harvest) · Garden 2: Potion of Healing – fertig an Tag 10."
