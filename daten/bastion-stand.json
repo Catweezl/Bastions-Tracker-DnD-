@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "day": 0,
+  "day": 2,
   "kasseCP": 5000,
   "theme": "dark",
   "chars": [
@@ -53,7 +53,29 @@
       "owner": "aelar",
       "hirelings": "Gon Grünmoos · Della Ahrenfeld",
       "location": "Gartenbereich",
-      "jobs": [],
+      "jobs": [
+        {
+          "id": "ekcws2r",
+          "start": 0,
+          "notified": false,
+          "kind": "harvest",
+          "order": "Harvest",
+          "qty": 1,
+          "end": 10,
+          "mix": false,
+          "title": "Potion of Healing",
+          "dice": "1W4",
+          "cooldown": 0,
+          "parts": [
+            {
+              "title": "Potion of Healing",
+              "dice": "1W4",
+              "unitCP": 5000
+            }
+          ],
+          "info": "Einfach · Gewöhnliche Heilkräuter · 2W4+2 HP"
+        }
+      ],
       "cooldownUntil": 0,
       "notes": ""
     },
@@ -65,7 +87,29 @@
       "owner": "aelar",
       "hirelings": "Gon Grünmoos · Della Ahrenfeld",
       "location": "Gartenbereich",
-      "jobs": [],
+      "jobs": [
+        {
+          "id": "rbcpqel",
+          "start": 0,
+          "notified": false,
+          "kind": "harvest",
+          "order": "Harvest",
+          "qty": 1,
+          "end": 10,
+          "mix": false,
+          "title": "Potion of Healing",
+          "dice": "1W4",
+          "cooldown": 0,
+          "parts": [
+            {
+              "title": "Potion of Healing",
+              "dice": "1W4",
+              "unitCP": 5000
+            }
+          ],
+          "info": "Einfach · Gewöhnliche Heilkräuter · 2W4+2 HP"
+        }
+      ],
       "cooldownUntil": 0,
       "notes": "Glasdach marode – nur als einfacher Garten nutzbar. Restaurierung → Greenhouse ab Level 9.",
       "upgradeTo": "greenhouse"
@@ -90,7 +134,21 @@
       "owner": "vyrraks",
       "hirelings": "Meister Orlin (Verwalter)",
       "location": "Nebengebäude EG",
-      "jobs": [],
+      "jobs": [
+        {
+          "id": "sgga8y8",
+          "start": 0,
+          "notified": false,
+          "kind": "buy",
+          "order": "Trade",
+          "title": "Vergoldete Blume für Zauber",
+          "qty": 1,
+          "matCP": 10000,
+          "paid": false,
+          "end": 10,
+          "hireling": "Meister Orlin"
+        }
+      ],
       "cooldownUntil": 0,
       "notes": ""
     }
@@ -102,7 +160,39 @@
   "siegel": {
     "lastUsed": null
   },
-  "lager": [],
+  "lager": [
+    {
+      "id": "kq91quz",
+      "name": "Blendpfeile (5 Stk.)",
+      "qty": 1,
+      "unitCP": 300
+    }
+  ],
   "lastEvent": null,
-  "log": []
+  "log": [
+    {
+      "day": 2,
+      "text": "Workshop: Blendpfeile (5 Stk.) ×1 ins Lager."
+    },
+    {
+      "day": 1,
+      "text": "Fertig: Workshop – Blendpfeile (5 Stk.). Bereit zum Abschließen."
+    },
+    {
+      "day": 0,
+      "text": "Order (Craft) · Workshop: Blendpfeile (5 Stk.) – fertig an Tag 1, Kosten 1 GP 5 SP."
+    },
+    {
+      "day": 0,
+      "text": "Order (Trade) · Storehouse: Vergoldete Blume für Zauber – fertig an Tag 10, Kosten 100 GP."
+    },
+    {
+      "day": 0,
+      "text": "Order (Harvest) · Garden 2: Potion of Healing – fertig an Tag 10."
+    },
+    {
+      "day": 0,
+      "text": "Order (Harvest) · Garden 1: Potion of Healing – fertig an Tag 10."
+    }
+  ]
 }
