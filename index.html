@@ -485,7 +485,9 @@ function createJob(f, data){
 function completeJob(f, j){
   let msg = '';
   if (j.kind === 'craft'){
-    addLager(j.title, j.qty, j.unitCP); msg = `${j.title} ×${j.qty} ins Lager.`;
+    const parts = j.parts || [{title:j.title, qty:j.qty, unitCP:j.unitCP}];
+    parts.forEach(pt => addLager(pt.title, pt.qty, pt.unitCP));
+    msg = parts.map(pt => `${pt.title} ×${pt.qty}`).join(', ') + ' ins Lager.';
   } else if (j.kind === 'harvest'){
     const parts = j.parts || [{title:j.title, dice:j.dice, unitCP:j.unitCP}];
     msg = 'Ernte: ' + parts.map(pt => {
@@ -576,8 +578,15 @@ function formHTML(f){
     if (t === 'sanctuary') opts = `<optgroup label="Sanctuary – Flynt Lagan">${optsItems(SANCTUARY, 's')}</optgroup>`;
     if (t === 'arcane_study') opts = `<optgroup label="Arcane Study – Peren">${optsItems(ARCANE, 'a')}</optgroup>`;
     if (t === 'arcane_study' && lvl >= 9) opts += `<optgroup label="Magic Items (ab Stufe 9)">${optsItems(MAGIC_CRAFT, 'm')}</optgroup>`;
+    const bk = basketOf(f), used = bk.reduce((a, b) => a + b.days, 0);
     body = `${catSel}<label class="f">Gegenstand<select name="item" data-a="preview">${opts}</select></label>
-      <div class="row">${qty}${nameOv}</div>${paid}<div class="preview" data-preview></div>`;
+      <div class="row">${qty}${nameOv}<button class="btn small" data-a="badd" data-f="${f.id}" title="Position zur Order hinzufügen">+ Position</button></div>
+      <div class="preview" data-preview></div>
+      ${bk.length ? `<table class="lager">${bk.map((b, i) => `<tr><td>${esc(b.title)} <span class="muted">×${b.qty}</span></td><td class="num muted">${b.days} T</td><td class="num muted">${fmt(b.matCP)}</td>
+        <td class="num"><button class="btn small ghost danger" data-a="bdel" data-f="${f.id}" data-i="${i}">✕</button></td></tr>`).join('')}
+        <tr><td class="muted">Belegt</td><td class="num">${used} / ${Math.max(TENDAY, used)} T</td><td class="num">${fmt(bk.reduce((a, b) => a + b.matCP, 0))}</td><td></td></tr></table>
+        <div class="bar"><i style="width:${Math.min(100, Math.round(used / TENDAY * 100))}%"></i></div>` : `<div class="tiny muted">Mehrere Positionen pro Order möglich, solange sie zusammen in einen Tenday (${TENDAY} Tage) passen. Ohne Liste wird nur der gewählte Gegenstand bestellt.</div>`}
+      ${paid}`;
     if ((t === 'workshop' || t === 'arcane_study') && lvl < 9) body += `<div class="tiny muted">Magic Items ab Stufe 9 (Besitzer aktuell Stufe ${lvl}).</div>`;
   } else if (t === 'garden' || t === 'greenhouse'){
     const list = HARVEST[t], mixOk = true;
@@ -708,6 +717,25 @@ function renderLog(){
 }
 
 /* ===================== Formular-Logik ===================== */
+const TENDAY = 10;
+const basketOf = f => (UI.basket = UI.basket || {})[f.id] || (UI.basket[f.id] = []);
+function craftPos(f, form){ // aktuelle Auswahl als Position
+  const val = n => form.querySelector(`[name=${n}]`);
+  const {it, hireling} = pickItem(f, val('item').value);
+  const q = Math.max(1, +val('qty').value || 1);
+  return {title:(val('label').value || '').trim() || it[0], qty:q, unitCP:it[1], matCP:it[2] * q, days:it[3] * q, unitDays:it[3], hireling};
+}
+function basketAdd(f){
+  const form = document.querySelector(`[data-form="${f.id}"]`); if (!form) return;
+  const pos = craftPos(f, form), bk = basketOf(f), used = bk.reduce((a, b) => a + b.days, 0);
+  if (bk.length && (used > TENDAY || used + pos.days > TENDAY)){
+    const free = Math.max(0, TENDAY - used), fit = Math.floor(free / pos.unitDays);
+    toast(used >= TENDAY ? 'Der Tenday ist voll.' : `Passt nicht mehr: noch ${free} Tag(e) frei${fit ? ` – maximal ${fit}× ${pos.title}` : ''}.`);
+    return;
+  }
+  if (!bk.length && pos.days > TENDAY) toast(`Dauert ${pos.days} Tage – läuft als Einzelorder über mehrere Tendays.`);
+  bk.push(pos); render();
+}
 function pickItem(f, val){
   const [p, i] = val.split('|'); const idx = +i;
   if (p === 's') return {it:SANCTUARY[idx], hireling:'Flynt Lagan'};
@@ -740,8 +768,9 @@ function updatePreview(form){
     return;
   }
   const q = Math.max(1, +form.querySelector('[name=qty]').value || 1);
-  const days = it[3] * q;
-  pv.textContent = `Material ${fmt(it[2] * q)} · Dauer ${days} Tag${days > 1 ? 'e' : ''} (fertig an Tag ${S.day + days})${it[1] ? ' · Wert ' + fmt(it[1] * q) : ''}`;
+  const days = it[3] * q, bk = basketOf(f), used = bk.reduce((a, b) => a + b.days, 0);
+  const free = bk.length ? Math.max(0, TENDAY - used) : TENDAY, fit = Math.floor(free / it[3]);
+  pv.textContent = `Material ${fmt(it[2] * q)} · Dauer ${days} Tag${days > 1 ? 'e' : ''}${it[1] ? ' · Wert ' + fmt(it[1] * q) : ''} · ${fit ? `passt ${fit}× in ${bk.length ? 'den Rest des ' : 'einen '}Tenday` : (bk.length ? 'passt nicht mehr in den Tenday' : 'länger als ein Tenday')}`;
 }
 function submitForm(f){
   const form = document.querySelector(`[data-form="${f.id}"]`); if (!form) return;
@@ -750,9 +779,13 @@ function submitForm(f){
   const label = (val('label')?.value || '').trim();
   const t = f.type;
   if (t === 'workshop' || t === 'sanctuary' || t === 'arcane_study'){
-    const {it, hireling} = pickItem(f, val('item').value);
-    const q = Math.max(1, +val('qty').value || 1);
-    createJob(f, {kind:'craft', order:'Craft', title:label || it[0], qty:q, unitCP:it[1], matCP:it[2] * q, paid, end:S.day + it[3] * q, hireling});
+    const bk = basketOf(f).slice(); if (!bk.length) bk.push(craftPos(f, form));
+    const days = bk.reduce((a, b) => a + b.days, 0), mat = bk.reduce((a, b) => a + b.matCP, 0);
+    const one = bk.length === 1;
+    createJob(f, {kind:'craft', order:'Craft', title: one ? bk[0].title : `Sammelorder: ${bk.map(b => b.title + ' ×' + b.qty).join(', ')}`,
+      qty: one ? bk[0].qty : 1, unitCP:bk[0].unitCP, parts:bk.map(b => ({title:b.title, qty:b.qty, unitCP:b.unitCP})),
+      matCP:mat, paid, end:S.day + days, hireling:[...new Set(bk.map(b => b.hireling).filter(Boolean))].join(' / ')});
+    UI.basket[f.id] = [];
   } else if (t === 'garden' || t === 'greenhouse'){
     const its = [pickItem(f, val('item').value).it]; if (val('item2')) its.push(pickItem(f, val('item2').value).it);
     const mix = its.length > 1;
@@ -811,7 +844,9 @@ document.addEventListener('click', e => {
     }
     case 'import': $('#importFile').click(); return;
     case 'openform': if (f.jobs.length){ toast('Pro Facility nur eine Order gleichzeitig.'); return; } UI.openForm = f.id; break;
-    case 'closeform': UI.openForm = null; break;
+    case 'closeform': if (UI.basket) UI.basket[UI.openForm] = []; UI.openForm = null; break;
+    case 'badd': basketAdd(f); return;
+    case 'bdel': basketOf(f).splice(+b.dataset.i, 1); break;
     case 'submit': if (f.jobs.length){ toast('Diese Facility hat bereits eine laufende Order.'); return; } submitForm(f); return;
     case 'storemode': UI.formType[f.id] = b.dataset.m; break;
     case 'complete': { const j = f.jobs.find(x => x.id === b.dataset.j); if (j) completeJob(f, j); break; }
