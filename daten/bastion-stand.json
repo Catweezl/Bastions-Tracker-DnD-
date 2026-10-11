@@ -1,7 +1,7 @@
 {
   "version": 1,
   "day": 2,
-  "kasseCP": 5000,
+  "kasseCP": 0,
   "theme": "dark",
   "chars": [
     {
@@ -55,7 +55,7 @@
       "location": "Gartenbereich",
       "jobs": [
         {
-          "id": "ekcws2r",
+          "id": "l9bp54k",
           "start": 0,
           "notified": false,
           "kind": "harvest",
@@ -89,7 +89,7 @@
       "location": "Gartenbereich",
       "jobs": [
         {
-          "id": "rbcpqel",
+          "id": "l7dpktz",
           "start": 0,
           "notified": false,
           "kind": "harvest",
@@ -136,7 +136,7 @@
       "location": "Nebengebäude EG",
       "jobs": [
         {
-          "id": "sgga8y8",
+          "id": "02pyrz4",
           "start": 0,
           "notified": false,
           "kind": "buy",
@@ -155,10 +155,10 @@
   ],
   "charms": {
     "sanctuary": {
-      "kaelan": 12
+      "kaelan": 10
     },
     "arcane_study": {
-      "kaelan": 12
+      "kaelan": 10
     }
   },
   "siegel": {
@@ -166,7 +166,7 @@
   },
   "lager": [
     {
-      "id": "kq91quz",
+      "id": "ra4m2vh",
       "name": "Blendpfeile (5 Stk.)",
       "qty": 1,
       "unitCP": 300
@@ -174,26 +174,6 @@
   ],
   "lastEvent": null,
   "log": [
-    {
-      "day": 2,
-      "text": "Heroic Inspiration für Vyrraks (Short Rest im Workshop)."
-    },
-    {
-      "day": 2,
-      "text": "Sanctuary Charm für Kaelan (bis Tag 12)."
-    },
-    {
-      "day": 2,
-      "text": "Sanctuary Charm von Kaelan eingesetzt."
-    },
-    {
-      "day": 2,
-      "text": "Arcane Study Charm erhalten (bis Tag 12)."
-    },
-    {
-      "day": 2,
-      "text": "Sanctuary Charm erhalten (bis Tag 12)."
-    },
     {
       "day": 2,
       "text": "Workshop: Blendpfeile (5 Stk.) ×1 ins Lager."
@@ -204,7 +184,11 @@
     },
     {
       "day": 0,
-      "text": "Order (Craft) · Workshop: Blendpfeile (5 Stk.) – fertig an Tag 1, Kosten 1 GP 5 SP."
+      "text": "Order (Harvest) · Garden 2: Potion of Healing – fertig an Tag 10."
+    },
+    {
+      "day": 0,
+      "text": "Order (Harvest) · Garden 1: Potion of Healing – fertig an Tag 10."
     },
     {
       "day": 0,
@@ -212,11 +196,19 @@
     },
     {
       "day": 0,
-      "text": "Order (Harvest) · Garden 2: Potion of Healing – fertig an Tag 10."
+      "text": "Order (Craft) · Workshop: Blendpfeile (5 Stk.) – fertig an Tag 1, Kosten 1 GP 5 SP."
     },
     {
       "day": 0,
-      "text": "Order (Harvest) · Garden 1: Potion of Healing – fertig an Tag 10."
+      "text": "Heroic Inspiration für Vyrraks (Short Rest im Workshop)."
+    },
+    {
+      "day": 0,
+      "text": "Arcane Study Charm für Kaelan (bis Tag 10)."
+    },
+    {
+      "day": 0,
+      "text": "Sanctuary Charm für Kaelan (bis Tag 10)."
     }
   ],
   "insp": {
