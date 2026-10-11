@@ -1,7 +1,7 @@
 {
   "version": 1,
   "day": 2,
-  "kasseCP": 0,
+  "kasseCP": -40000,
   "theme": "dark",
   "chars": [
     {
@@ -147,6 +147,19 @@
           "paid": false,
           "end": 10,
           "hireling": "Meister Orlin"
+        },
+        {
+          "id": "0xjoelb",
+          "start": 0,
+          "notified": false,
+          "kind": "buy",
+          "order": "Trade",
+          "title": "Trade Goods",
+          "qty": 1,
+          "matCP": 40000,
+          "paid": true,
+          "end": 10,
+          "hireling": "Meister Orlin"
         }
       ],
       "cooldownUntil": 0,
@@ -174,6 +187,10 @@
   ],
   "lastEvent": null,
   "log": [
+    {
+      "day": 2,
+      "text": "Order (Trade) · Storehouse: Trade Goods – fertig an Tag 10, Kosten 400 GP."
+    },
     {
       "day": 2,
       "text": "Workshop: Blendpfeile (5 Stk.) ×1 ins Lager."
