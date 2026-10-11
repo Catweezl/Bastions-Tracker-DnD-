@@ -721,7 +721,7 @@ function renderKasse(){
   const total = S.lager.reduce((a, it) => a + (it.unitCP || 0) * it.qty, 0);
   $('#kassePanel').innerHTML = `<h2>Kasse &amp; Lager</h2>
     <div class="kv"><span class="money" style="${S.kasseCP < 0 ? 'color:var(--bad)' : ''}">${fmt(S.kasseCP)}</span>
-      <span class="tools"><input type="number" id="kasseIn" placeholder="GP" style="width:70px"><button class="btn small" data-a="kasse" data-s="1">+</button><button class="btn small" data-a="kasse" data-s="-1">−</button></span></div>
+      <span class="tools"><input type="number" id="kasseIn" placeholder="GP" style="width:70px"><button class="btn small" data-a="kasse" data-s="1">+</button><button class="btn small" data-a="kasse" data-s="-1">−</button><button class="btn small ghost" data-a="kassereset" title="Kasse auf 0 GP setzen (Lager bleibt)">↺ 0</button></span></div>
     <hr class="sep">
     ${S.lager.length ? `<table class="lager">${S.lager.map(it => `<tr><td>${esc(it.name)}</td>
       <td class="num"><span class="qty"><button class="btn small ghost" data-a="lq" data-id="${it.id}" data-d="-1">−</button>${it.qty}<button class="btn small ghost" data-a="lq" data-id="${it.id}" data-d="1">+</button></span></td>
@@ -893,6 +893,7 @@ document.addEventListener('click', e => {
     case 'inspuse': S.insp[b.dataset.c] = 'used'; log(`${charName(b.dataset.c)} hat Heroic Inspiration eingesetzt.`); break;
     case 'longrest': { let n = 0; for (const c in S.insp) if (S.insp[c] === 'used'){ delete S.insp[c]; n++; }
       log('Long Rest beendet' + (n ? ' – Source of Inspiration wieder verfügbar.' : '.')); toast('Long Rest eingetragen.'); break; }
+    case 'kassereset': if (!S.kasseCP){ toast('Kasse steht bereits auf 0.'); return; } if (!armed(b)) return; log(`Kasse auf 0 gesetzt (vorher ${fmt(S.kasseCP)}).`); S.kasseCP = 0; toast('Kasse auf 0 gesetzt.'); break;
     case 'kasse': { const v = +$('#kasseIn').value; if (!v) return; S.kasseCP += Math.round(v * GP) * +b.dataset.s; log(`Kasse ${+b.dataset.s > 0 ? '+' : '−'}${fmt(Math.abs(v * GP))}.`); break; }
     case 'lq': { const it = S.lager.find(x => x.id === b.dataset.id); if (!it) return; it.qty += +b.dataset.d; if (it.qty <= 0) S.lager = S.lager.filter(x => x !== it); break; }
     case 'ldel': S.lager = S.lager.filter(x => x.id !== b.dataset.id); break;
