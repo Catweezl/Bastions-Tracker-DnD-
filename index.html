@@ -615,13 +615,15 @@ function formHTML(f){
       ${mode === 'mix' ? sel('A', 'item', 'Kategorie A – Heilkräuter') + sel('B', 'item2', 'Kategorie B – Gifte') : sel(mode, 'item', mode === 'A' ? 'Kategorie A – Heilkräuter' : 'Kategorie B – Gifte')}
       <div class="preview" data-preview></div><div class="tiny muted">Harvest dauert 1 Tenday, Ertrag wird beim Abschließen gewürfelt. Mischbetrieb: Ertrag beider Kategorien halbiert (aufgerundet, min. 1); die längere Abklingzeit blockiert die Anlage.</div>`;
   } else if (t === 'storehouse'){
-    const mode = UI.formType[f.id] || 'buy';
-    const limit = STORE_LIMIT(lvl), mk = STORE_MARKUP(lvl);
+    const buying = buyJobs(f).length > 0;
+    const mode = buying ? 'buy' : (UI.formType[f.id] || 'buy');
+    const limit = STORE_LIMIT(lvl), mk = STORE_MARKUP(lvl), left = buyLeft(f);
     body = `<div class="row"><button class="btn small ${mode === 'buy' ? 'primary' : ''}" data-a="storemode" data-f="${f.id}" data-m="buy">Einkaufen</button>
-      <button class="btn small ${mode === 'sell' ? 'primary' : ''}" data-a="storemode" data-f="${f.id}" data-m="sell">Verkaufen</button>
-      <span class="tiny muted">Stufe ${lvl}: Einkauf max. ${fmt(limit)} · Verkauf +${Math.round(mk * 100)} %</span></div>`;
+      ${buying ? '' : `<button class="btn small ${mode === 'sell' ? 'primary' : ''}" data-a="storemode" data-f="${f.id}" data-m="sell">Verkaufen</button>`}
+      <span class="tiny muted">Stufe ${lvl}: Einkauf max. ${fmt(limit)} pro Tenday · Verkauf +${Math.round(mk * 100)} %</span></div>`;
     if (mode === 'buy'){
-      body += `<div class="row"><label class="f">Betrag (GP)<input type="number" name="gp" min="1" max="${limit / GP}" value="${Math.min(480, limit / GP)}"></label>
+      body += `${buying ? `<div class="tiny muted">Diesen Tenday bereits bestellt: ${fmt(limit - left)} · <b style="color:var(--accent2);font-weight:normal">Restbudget ${fmt(left)}</b> (Verkaufen erst im nächsten Tenday)</div>` : ''}
+        <div class="row"><label class="f">Betrag (GP)<input type="number" name="gp" min="1" max="${Math.floor(left / GP)}" value="${Math.floor(left / GP)}"></label>
         <label class="f" style="flex:1">Ware<input name="label" placeholder="Trade Goods (z. B. Getreide, Stoffe)"></label></div>${paid}`;
     } else {
       body += S.lager.length ? `<div class="checks">${S.lager.map(it => `<label><input type="checkbox" name="sell" value="${it.id}" data-a="preview"> ${esc(it.name)} ×${it.qty} <span class="muted">(${it.unitCP ? fmt(it.unitCP * it.qty) : 'Wert unbekannt'})</span></label>`).join('')}</div>
@@ -658,7 +660,7 @@ function facHTML(f, overLimit){
       <span style="display:flex;gap:6px">
         ${canUpgrade ? `<button class="btn small" data-a="upgrade" data-f="${f.id}">→ ${esc(CATALOG[f.upgradeTo].name)}</button>` : ''}
         <button class="btn small ghost danger" data-a="remove" data-f="${f.id}" title="Facility entfernen">✕</button>
-        ${UI.openForm === f.id ? '' : canAddOrder(f) ? `<button class="btn small primary" data-a="openform" data-f="${f.id}">+ Order</button>` : `<span class="tiny muted">${CRAFT_QUEUE.includes(f.type) ? 'Tenday ausgelastet' : 'Order läuft'}</span>`}
+        ${UI.openForm === f.id ? '' : canAddOrder(f) ? `<button class="btn small primary" data-a="openform" data-f="${f.id}">+ Order</button>` : `<span class="tiny muted">${fullLabel(f)}</span>`}
       </span>
     </div></div>`;
 }
@@ -749,7 +751,13 @@ const CRAFT_QUEUE = ['workshop','sanctuary','arcane_study'];
 const busyUntil = f => Math.max(S.day, ...f.jobs.map(j => j.end));
 const facLoad = f => busyUntil(f) - S.day; // belegte Tage ab heute
 // Craft-Facilities: weitere Orders erlaubt, solange die Warteschlange < 1 Tenday ist; sonst 1 Order pro Facility
-const canAddOrder = f => !f.jobs.length || (CRAFT_QUEUE.includes(f.type) && facLoad(f) < TENDAY);
+// Storehouse: mehrere Einkaufs-Orders pro Tenday bis zum Einkaufslimit der Stufe (Kaufen ODER Verkaufen, nicht beides)
+const buyJobs = f => f.jobs.filter(j => j.kind === 'buy');
+const buyLeft = f => STORE_LIMIT(ownerLevel(f)) - buyJobs(f).reduce((a, j) => a + (j.matCP || 0), 0);
+const canAddOrder = f => !f.jobs.length
+  || (CRAFT_QUEUE.includes(f.type) && facLoad(f) < TENDAY)
+  || (f.type === 'storehouse' && f.jobs.every(j => j.kind === 'buy') && buyLeft(f) > 0);
+const fullLabel = f => CRAFT_QUEUE.includes(f.type) ? 'Tenday ausgelastet' : (f.type === 'storehouse' && f.jobs.every(j => j.kind === 'buy')) ? 'Einkaufslimit erreicht' : 'Order läuft';
 function craftPos(f, form){ // aktuelle Auswahl
   const val = n => form.querySelector(`[name=${n}]`);
   const {it, hireling} = pickItem(f, val('item').value);
@@ -826,9 +834,11 @@ function submitForm(f){
   } else if (t === 'storehouse'){
     const mode = UI.formType[f.id] || 'buy', lvl = ownerLevel(f);
     if (mode === 'buy'){
-      const gp = Math.max(0, +val('gp').value || 0), limit = STORE_LIMIT(lvl);
-      if (gp * GP > limit && !armed(document.querySelector(`[data-a=submit][data-f="${f.id}"]`))){ toast(`Über dem Einkaufslimit von ${fmt(limit)} – zum Bestätigen erneut klicken.`); return; }
-      createJob(f, {kind:'buy', order:'Trade', title:label || 'Trade Goods', qty:1, matCP:gp * GP, paid, end:S.day + 10, hireling:'Meister Orlin'});
+      const gp = Math.max(0, +val('gp').value || 0), left = buyLeft(f);
+      if (!gp){ toast('Bitte einen Betrag eingeben.'); return; }
+      if (gp * GP > left && !armed(document.querySelector(`[data-a=submit][data-f="${f.id}"]`))){ toast(`Über dem Restbudget von ${fmt(left)} – zum Bestätigen erneut klicken.`); return; }
+      const run = buyJobs(f)[0]; // weitere Einkäufe laufen im selben Trade-Tenday mit
+      createJob(f, {kind:'buy', order:'Trade', title:label || 'Trade Goods', qty:1, matCP:gp * GP, paid, start: run ? run.start : S.day, end: run ? run.end : S.day + 10, hireling:'Meister Orlin'});
     } else {
       const items = selectedSell(form), extra = (+val('extra')?.value || 0) * GP;
       const base = items.reduce((a, it) => a + (it.unitCP || 0) * it.qty, 0) + extra;
@@ -843,7 +853,7 @@ function submitForm(f){
     createJob(f, {kind:'generic', order:val('order').value, title:label || (CATALOG[t]?.name || 'Order'), qty:1, matCP:gp * GP, paid, end:S.day + days});
   }
   // Craft: Formular offen lassen, solange noch Platz im Tenday ist
-  if (!(CRAFT_QUEUE.includes(f.type) && canAddOrder(f))) UI.openForm = null;
+  if (!((CRAFT_QUEUE.includes(f.type) || f.type === 'storehouse') && f.jobs.length && canAddOrder(f))) UI.openForm = null;
   render();
 }
 
@@ -873,7 +883,7 @@ document.addEventListener('click', e => {
       return;
     }
     case 'import': $('#importFile').click(); return;
-    case 'openform': if (!canAddOrder(f)){ toast(CRAFT_QUEUE.includes(f.type) ? 'Der Tenday dieser Facility ist ausgelastet.' : 'Pro Facility nur eine Order gleichzeitig.'); return; } UI.openForm = f.id; break;
+    case 'openform': if (!canAddOrder(f)){ toast(fullLabel(f) + '.'); return; } UI.openForm = f.id; break;
     case 'closeform': UI.openForm = null; break;
     case 'submit': if (!canAddOrder(f)){ toast('Diese Facility ist bereits ausgelastet.'); return; } submitForm(f); return;
     case 'storemode': UI.formType[f.id] = b.dataset.m; break;
