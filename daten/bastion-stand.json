@@ -1,7 +1,7 @@
 {
   "version": 1,
   "day": 2,
-  "kasseCP": -40000,
+  "kasseCP": 4850,
   "theme": "dark",
   "chars": [
     {
@@ -55,7 +55,7 @@
       "location": "Gartenbereich",
       "jobs": [
         {
-          "id": "l9bp54k",
+          "id": "zqy3pv2",
           "start": 0,
           "notified": false,
           "kind": "harvest",
@@ -89,7 +89,7 @@
       "location": "Gartenbereich",
       "jobs": [
         {
-          "id": "l7dpktz",
+          "id": "ujjrovs",
           "start": 0,
           "notified": false,
           "kind": "harvest",
@@ -122,7 +122,36 @@
       "owner": "vyrraks",
       "hirelings": "Am & Boss Eisenschlag · Elaynie Fadenglanz",
       "location": "Nebengebäude EG",
-      "jobs": [],
+      "jobs": [
+        {
+          "id": "m1vx9n3",
+          "start": 2,
+          "notified": false,
+          "kind": "craft",
+          "order": "Craft",
+          "title": "Mirror (Stahl)",
+          "qty": 1,
+          "unitCP": 500,
+          "matCP": 200,
+          "paid": false,
+          "end": 3,
+          "hireling": "Am & Boss · Tinker's Tools"
+        },
+        {
+          "id": "ywyt9i5",
+          "start": 3,
+          "notified": false,
+          "kind": "craft",
+          "order": "Craft",
+          "title": "Rauchpfeile (5 Stk.)",
+          "qty": 1,
+          "unitCP": 300,
+          "matCP": 150,
+          "paid": false,
+          "end": 4,
+          "hireling": "Am & Boss · Tinker's Tools"
+        }
+      ],
       "cooldownUntil": 0,
       "notes": ""
     },
@@ -134,52 +163,21 @@
       "owner": "vyrraks",
       "hirelings": "Meister Orlin (Verwalter)",
       "location": "Nebengebäude EG",
-      "jobs": [
-        {
-          "id": "02pyrz4",
-          "start": 0,
-          "notified": false,
-          "kind": "buy",
-          "order": "Trade",
-          "title": "Vergoldete Blume für Zauber",
-          "qty": 1,
-          "matCP": 10000,
-          "paid": false,
-          "end": 10,
-          "hireling": "Meister Orlin"
-        },
-        {
-          "id": "0xjoelb",
-          "start": 0,
-          "notified": false,
-          "kind": "buy",
-          "order": "Trade",
-          "title": "Trade Goods",
-          "qty": 1,
-          "matCP": 40000,
-          "paid": true,
-          "end": 10,
-          "hireling": "Meister Orlin"
-        }
-      ],
+      "jobs": [],
       "cooldownUntil": 0,
       "notes": ""
     }
   ],
   "charms": {
-    "sanctuary": {
-      "kaelan": 10
-    },
-    "arcane_study": {
-      "kaelan": 10
-    }
+    "sanctuary": {},
+    "arcane_study": {}
   },
   "siegel": {
     "lastUsed": null
   },
   "lager": [
     {
-      "id": "ra4m2vh",
+      "id": "c0pc00y",
       "name": "Blendpfeile (5 Stk.)",
       "qty": 1,
       "unitCP": 300
@@ -189,7 +187,19 @@
   "log": [
     {
       "day": 2,
-      "text": "Order (Trade) · Storehouse: Trade Goods – fertig an Tag 10, Kosten 400 GP."
+      "text": "Order (Craft) · Workshop: Rauchpfeile (5 Stk.) – fertig an Tag 4, Kosten 1 GP 5 SP."
+    },
+    {
+      "day": 2,
+      "text": "Order (Craft) · Workshop: Mirror (Stahl) – fertig an Tag 3, Kosten 2 GP."
+    },
+    {
+      "day": 2,
+      "text": "Workshop: Auftrag „Rauchpfeile (5 Stk.)“ abgebrochen (Kosten erstattet)."
+    },
+    {
+      "day": 2,
+      "text": "Order (Craft) · Workshop: Rauchpfeile (5 Stk.) – fertig an Tag 3, Kosten 1 GP 5 SP."
     },
     {
       "day": 2,
@@ -201,15 +211,7 @@
     },
     {
       "day": 0,
-      "text": "Order (Harvest) · Garden 2: Potion of Healing – fertig an Tag 10."
-    },
-    {
-      "day": 0,
-      "text": "Order (Harvest) · Garden 1: Potion of Healing – fertig an Tag 10."
-    },
-    {
-      "day": 0,
-      "text": "Order (Trade) · Storehouse: Vergoldete Blume für Zauber – fertig an Tag 10, Kosten 100 GP."
+      "text": "Kasse +50 GP."
     },
     {
       "day": 0,
@@ -217,19 +219,12 @@
     },
     {
       "day": 0,
-      "text": "Heroic Inspiration für Vyrraks (Short Rest im Workshop)."
+      "text": "Order (Harvest) · Garden 2: Potion of Healing – fertig an Tag 10."
     },
     {
       "day": 0,
-      "text": "Arcane Study Charm für Kaelan (bis Tag 10)."
-    },
-    {
-      "day": 0,
-      "text": "Sanctuary Charm für Kaelan (bis Tag 10)."
+      "text": "Order (Harvest) · Garden 1: Potion of Healing – fertig an Tag 10."
     }
   ],
-  "insp": {
-    "vyrraks": "has"
-  },
-  "charmsAll": false
+  "insp": {}
 }
